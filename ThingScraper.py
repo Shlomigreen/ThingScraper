@@ -8,6 +8,8 @@ import config as conf
 import os
 import re
 
+URL = "https://www.thingiverse.com/"
+
 
 class Thing:
     """
@@ -17,22 +19,37 @@ class Thing:
     After fetching, parse_all() will generate a dictionary holding all information about the thing (model).
     Information can be accessed by using squared brackets on the thing instance.
     """
-    def __init__(self, url):
-        self.url = url
-        self.thing_id = url.split(sep=":")[-1]
-
+    def __init__(self, **kwargs):
+        if kwargs.get('url') is not None:
+            self.url = kwargs['url']
+            self.thing_id = kwargs['url'].split(sep=":")[-1]
+        elif kwargs.get('id') is not None:
+            self.thing_id = kwargs['id']
+            self.url = URL + "thing:" + kwargs['id']
+        else:
+            raise ValueError("Input must be either id or url")
         # Declaring empty dictionaries to hold page elements and properties (parsed elements)
         self.elements = dict()
         self.properties = dict()
 
     def __getitem__(self, item):
-        if item in self.properties.keys():
-            return self.properties[item]
-        else:
-            return None
+        return self.properties.get(item)
 
     def __setitem__(self, key, value):
         self.properties[key] = value
+
+    def __add__(self, other):
+        if isinstance(other, dict):
+            self.properties.update(other)
+        else:
+            raise TypeError(f"Can only add dictionary, not {type(other)}")
+        return self
+
+    def __str__(self):
+        output = f"Thing number {self.thing_id}:\n"
+        for key in self.properties:
+            output += f"\t{key} = {self.properties[key]}\n"
+        return output
 
     def keys(self):
         return self.properties.keys()

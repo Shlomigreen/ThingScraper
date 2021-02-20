@@ -71,7 +71,7 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
             item_id = item.find_element_by_class_name("ThingCardBody__cardBodyWrapper--ba5pu").get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
             likes = item.find_elements_by_class_name("CardActionItem__textWrapper--2wTM-")[1]
-            thing = Thing(URL + "thing:" + item_id)
+            thing = Thing(id=item_id)
             thing['likes'] = int(likes.text)
             data.append((int(item_id), thing))
     return dict(data)
@@ -81,7 +81,8 @@ def main():
     browser = Browser(BROWSER_TYPE, full_driver_path)
     data = scraper_search(browser, 5)
     for key in data:
-        print(f"For item {key}:\n{data[key].properties}\n")
+        # print(f"For item {key}:\n{data[key].properties}\n")
+        print(data[key])
     browser.close()
     # browser = Browser(conf.browser, conf.driver_path)
     # try:
