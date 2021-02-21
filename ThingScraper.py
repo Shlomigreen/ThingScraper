@@ -12,14 +12,14 @@ import datetime
 URL = "https://www.thingiverse.com/"
 
 
-def field_it(name) :
+def field_it(name):
     """
     Converts given name into lowercase str and replaces whitespaces with an underscroe.
     """
     return name.lower().replace(' ', '_')
 
 
-class Thing :
+class Thing:
     """
     Thing class is design to hold single thing page information.
     Once an instance is created by providing thing url, fetch_all(browser) function is need to be used in order to obtain
@@ -28,7 +28,7 @@ class Thing :
     Information can be accessed by using squared brackets on the thing instance.
     """
 
-    def __init__(self, **kwargs) :
+    def __init__(self, **kwargs):
         if kwargs.get('url') is not None :
             self.url = kwargs['url']
             self.thing_id = kwargs['url'].split(sep=":")[-1]
@@ -248,6 +248,9 @@ class Browser:
             return self.driver.find_elements(by, name)
         else :
             return self.driver.find_element(by, name)
+
+    # TODO: add open with functionallity
+
 
 
 def main() :
