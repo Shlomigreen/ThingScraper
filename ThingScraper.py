@@ -187,7 +187,8 @@ class Thing:
         for key, value in self._elements['tab_buttons'].items():
             if key.text not in ignore_buttons:
                 # using tab button names as field names. lowering case and replacing spaces with underscore
-                self.properties[field_it(key.text)] = value.text
+                # cast matric ast int
+                self.properties[field_it(key.text)] = int(value.text)
 
         # Obtain text from each tag element add add them all as a list to properties
         self.properties['tags'] = [tag.text for tag in self._elements['tags']]
@@ -223,6 +224,14 @@ class Thing:
 
         if clear_cache:
             self._elements.clear()
+
+    def get_json(self):
+        """
+        Returns a single dictionary holding all information about the thing.
+        """
+        result = {'thing_id': self.thing_id, 'url':self.url}
+        result.update(self.properties)
+        return result
 
 
 class Browser:
@@ -338,9 +347,17 @@ class Browser:
 
 def main():
     with Browser(conf.browser, conf.driver_path) as browser:
-        thing = Thing(id='5')
+        thing = Thing(id='4734271')
         thing.fetch_all(browser)
         thing.parse_all()
+
+        # testing several properties
+        assert thing.properties['creator_username'] == 'brainchecker'
+        assert thing.properties['makes'] == 17
+        assert thing.properties['tags'] == ['box', 'container', 'crate', 'stackable']
+        assert thing.properties['filament_material'] == 'PLA'
+
+        # printing thing information
         thing.print_info()
 
 

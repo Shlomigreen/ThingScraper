@@ -33,6 +33,7 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
         while len(projects) < THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, ELEMENT_PROJECT, find_all=True)
         print(f"Found {len(projects)} projects on page {i+1}")
+        thing_browser = Browser(conf.browser, conf.driver_path)
         for item in projects:
             # TODO: We might need to add support for selenium stale element exception/ wait
             item_id = item.find_element_by_class_name("ThingCardBody__cardBodyWrapper--ba5pu").get_attribute("href")
@@ -40,13 +41,16 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
             likes = item.find_elements_by_class_name("CardActionItem__textWrapper--2wTM-")[1]
             thing = Thing(id=item_id)
             thing['likes'] = int(likes.text)
+            thing.fetch_all(thing_browser)
+            thing.parse_all()
+            thing.print_info()
             data.append((int(item_id), thing))
+        thing_browser.close()
     return dict(data)
 
 
 def main():
-    browser = Browser(BROWSER_TYPE, conf.driver_path)
-    try:
+    with Browser(BROWSER_TYPE, conf.driver_path) as browser:
         data = scraper_search(browser, 30)
         failed = []
         for key in data:
@@ -58,8 +62,6 @@ def main():
                 print(f"Failed to retrieve for item id = {key}\n")
             else:
                 print(data[key])
-    finally:
-        browser.close()
 
 
 if __name__ == '__main__':
