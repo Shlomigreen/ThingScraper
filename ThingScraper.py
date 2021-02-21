@@ -194,18 +194,30 @@ class Browser:
         # minimise the opened browser
         self.driver.minimize_window()
 
-    def get(self, url) :
+    def get(self, url):
         """
         Equivalent to Browser.driver.get method
         """
 
         self.driver.get(url)
 
-    def close(self) :
+    def close(self):
         """
         Equivalent to Browser.driver.close method
         """
         self.driver.close()
+
+    def __enter__(self):
+        """
+        Allows to open browser connection using 'with' statement
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Allows to close browser connection using 'with' statment
+        """
+        self.close()
 
     def wait(self, by, name, timeout=conf.get_wait_timeout, regex=False) :
         # TODO: implement in wait_and_find
@@ -234,7 +246,7 @@ class Browser:
                 (webdriver.remote.webelement.WebElement) : the found element(s)
         """
         # change the search name to re.compile of regex is enabled
-        if regex :
+        if regex:
             name = re.compile(name)
 
         # wait for given element to be available and then retrieve it
@@ -249,18 +261,14 @@ class Browser:
         else :
             return self.driver.find_element(by, name)
 
-    # TODO: add open with functionallity
+
+def main():
+    with Browser(conf.browser, conf.driver_path) as browser:
+        thing = Thing(id='4734271')
+        thing.fetch_all(browser)
+        thing.parse_all()
+        print(thing.properties)
 
 
-
-def main() :
-    browser = Browser(conf.browser, conf.driver_path)
-    thing = Thing(id='4734271')
-    thing.fetch_all(browser)
-    thing.parse_all()
-    print("Done")
-    browser.close()
-
-
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main()
