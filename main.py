@@ -75,7 +75,6 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
         while len(projects) < THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, ELEMENT_PROJECT, find_all=True)
         print(f"Found {len(projects)} projects on page {i+1}")
-        thing_browser = Browser(conf.browser, conf.driver_path)
         for item in projects:
             item_id = item.find_element_by_class_name(ELEMENT_LINK).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
@@ -99,12 +98,12 @@ def main():
                     failed.append((key, E))
                     print(f"Failed to retrieve for item id = {key}\n")
                 else:
-                    print(data[key].print_info())
+                    data[key].print_info()
             save_file("save.json", data)
     else:
         data = open_file("save.json")
         for key in data:
-            print(data[key].print_info())
+            data[key].print_info()
 
 
 if __name__ == '__main__':
