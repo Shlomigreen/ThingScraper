@@ -51,7 +51,7 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
 
 def main():
     with Browser(BROWSER_TYPE, conf.driver_path) as browser:
-        data = scraper_search(browser, 30)
+        data = scraper_search(browser, 5)
         failed = []
         for key in data:
             try:
