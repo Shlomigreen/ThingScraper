@@ -177,8 +177,8 @@ class Thing:
 
         # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
         date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
-        # convert string date into actual date using datetime package
-        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y")
+        # convert string date into actual date using datetime package. Date saved in epoch format.
+        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
 
         # Metric information
         # set tab buttons to be ignore (hold not useful information)
