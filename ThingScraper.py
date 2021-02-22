@@ -48,8 +48,8 @@ class Thing:
 
         # Declaring empty dictionaries to hold page elements and properties (parsed elements)
         self._elements = dict()
-        self.properties = kwargs.get('properties') if not None else dict()
-        # self.properties = dict()
+        prop_value = kwargs.get('properties')
+        self.properties = prop_value if prop_value is not None else dict()
 
     def __getitem__(self, item):
         """
@@ -178,11 +178,8 @@ class Thing:
 
         # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
         date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
-        # convert string date into actual date using datetime package
-        # TODO: Handle datetime
-        #self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y")
-        # self.properties['upload_date'] = date_text
-        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y")
+        # convert string date into actual date using epoch
+        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
 
         # Metric information
         # set tab buttons to be ignore (hold not useful information)
