@@ -40,7 +40,8 @@ class Thing:
         elif kwargs.get('id') is not None:
             self.thing_id = kwargs['id']
             self.url = URL + "thing:" + kwargs['id']
-        # in case neither id nor url were given, raise a value error.
+            
+        # in case no neither id or url were given, raise a value error.
         else:
             raise ValueError(
                 "Construction arguments for thing object must include either an id or a url. Given arguments:",
@@ -105,7 +106,7 @@ class Thing:
         for key in self.properties:
             output.append(f"\t{key} = {self.properties[key]}")
         print("\n".join(output))
-
+        
     def keys(self):
         """
         Returns all property names held for the thing instance.
@@ -178,7 +179,8 @@ class Thing:
 
         # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
         date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
-        # convert string date into actual date using epoch
+
+        # convert string date into actual date using datetime package. Date saved in epoch format.
         self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
 
         # Metric information
@@ -188,7 +190,8 @@ class Thing:
         for key, value in self._elements['tab_buttons'].items():
             if key.text not in ignore_buttons:
                 # using tab button names as field names. lowering case and replacing spaces with underscore
-                self.properties[field_it(key.text)] = value.text
+                # cast matric ast int
+                self.properties[field_it(key.text)] = int(value.text)
 
         # Obtain text from each tag element add add them all as a list to properties
         self.properties['tags'] = [tag.text for tag in self._elements['tags']]
@@ -224,6 +227,14 @@ class Thing:
 
         if clear_cache:
             self._elements.clear()
+
+    def get_json(self):
+        """
+        Returns a single dictionary holding all information about the thing.
+        """
+        result = {'thing_id': self.thing_id, 'url':self.url}
+        result.update(self.properties)
+        return result
 
 
 class Browser:
@@ -284,7 +295,6 @@ class Browser:
     def wait(self, by, name, timeout=conf.get_wait_timeout, regex=False):
         """
         Wait for specific element to be present in browser.
-
             Parameters:
                 by (selenium.webdriver.common.by): html tag attribute to search for
                 name (str): the 'by' value to search for
@@ -322,14 +332,11 @@ class Browser:
     def wait_and_find(self, by, name, timeout=conf.get_wait_timeout, find_all=False, regex=False):
         """Wait for given element in the opened page on the browser and return the searched result.
            Combination of Browser.wait and Browser.find methods.
-
-               Parameters:
+            Parameters:
                 by (selenium.webdriver.common.by): html tag attribute to search for
                 name (str): the 'by' value to search for
                 timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on config.py
-                find_all (bool): if true, returned value will be a list of all found elements. Default: False
                 regex (bool): if true, regex search patterns are enabled for 'name'.
-
                Returns:
                 (webdriver.remote.webelement.WebElement): the found element(s)
         """
@@ -339,9 +346,17 @@ class Browser:
 
 def main():
     with Browser(conf.browser, conf.driver_path) as browser:
-        thing = Thing(id='5')
+        thing = Thing(id='4734271')
         thing.fetch_all(browser)
         thing.parse_all()
+
+        # testing several properties
+        assert thing.properties['creator_username'] == 'brainchecker'
+        assert thing.properties['makes'] == 17
+        assert thing.properties['tags'] == ['box', 'container', 'crate', 'stackable']
+        assert thing.properties['filament_material'] == 'PLA'
+
+        # printing thing information
         thing.print_info()
 
 
