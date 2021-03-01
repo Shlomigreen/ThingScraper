@@ -1,23 +1,29 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.common.exceptions import NoSuchElementException
 
 import config as conf
 import os
 import re
 import datetime
-
-# Url of the main domain
-URL = "https://www.thingiverse.com/"
+import webpage_elements as elm
 
 
-def field_it(name):
+def to_field_format(name):
     """
-    Converts given name into lowercase str and replaces whitespaces with an underscroe.
+    Converts given name into lowercase str and replaces whitespaces with an underscore.
     """
     return name.lower().replace(' ', '_')
+
+
+def get_parent(element):
+    """
+    Returns the parent selenium element of given element.
+    """
+
+    return element.find_element_by_xpath('..')
 
 
 class Thing:
@@ -39,13 +45,12 @@ class Thing:
             self.thing_id = kwargs['url'].split(sep=":")[-1]
         elif kwargs.get('id') is not None:
             self.thing_id = kwargs['id']
-            self.url = URL + "thing:" + kwargs['id']
-            
+            self.url = conf.MAIN_URL + "thing:" + kwargs['id']
+
         # in case no neither id or url were given, raise a value error.
         else:
             raise ValueError(
-                "Construction arguments for thing object must include either an id or a url. Given arguments:",
-                **kwargs)
+                "Construction arguments for thing object must include either an id, url or properties (as dictionary). Given arguments:", kwargs.keys())
 
         # Declaring empty dictionaries to hold page elements and properties (parsed elements)
         self._elements = dict()
@@ -55,16 +60,16 @@ class Thing:
     def __getitem__(self, item):
         """
         Implementation of special function to allow retrieving a thing parameter by using squared brackets.
-       :param item: key for the requested thing property.
-       :return: thing property.
+      :param item: key for the requested thing property.
+      :return: thing property.
         """
         return self.properties.get(item)
 
     def __setitem__(self, key, value):
         """
         Implementation of special function to allow setting a thing parameter by using squared brackets.
-       :param key: key for requested thing property
-       :param value: the value to set for the property
+      :param key: key for requested thing property
+      :param value: the value to set for the property
         """
         self.properties[key] = value
 
@@ -72,8 +77,8 @@ class Thing:
         """
         Implementation of special function to allow appending parameters to a thing by using '+' sign.
         Appended object must be of type dict.
-       :param other: dictionary with keys as properties.
-       :return: self
+      :param other: dictionary with keys as properties.
+      :return: self
         """
 
         # verify given parameter to be of type dict
@@ -86,14 +91,14 @@ class Thing:
     def __str__(self):
         """
         Implementation of special function to allow str casting of thing instance.
-       :return: thing's url
+      :return: thing's url
         """
         return self.url
 
     def __repr__(self):
         """
         Implementation of special function to allow representation of a thing instance.
-       :return: thing's url
+      :return: thing's url
         """
         return self.url
 
@@ -106,60 +111,87 @@ class Thing:
         for key in self.properties:
             output.append(f"\t{key} = {self.properties[key]}")
         print("\n".join(output))
-        
+
     def keys(self):
         """
         Returns all property names held for the thing instance.
         """
         return tuple(self.properties.keys())
 
+    def _open_url(self, browser):
+        browser.get(self.url)
+
     def fetch_all(self, browser):
         """
         Breaks down the thing's url into elements (tags and classes) holding properties.
-       :param browser: Browser object the be used for accessing the thing's url.
+      :param browser: Browser object the be used for accessing the thing's url.
         """
-
         # open thing url
-        browser.get(self.url)
+        self._open_url(browser)
 
-        # obtain element holding the model (thing) name
-        self._elements['model_name'] = browser.wait_and_find(By.CLASS_NAME, "ThingPage__modelName--3CMsV")
+        self._fetch_model_name(browser)
 
-        # obtain element holding both the creator name and the uploaded date
-        self._elements['created_by'] = browser.wait_and_find(By.CLASS_NAME, "ThingPage__createdBy--1fVAy")
+        self._fetch_created_by(browser)
 
-        # obtain tab buttons holding metric information: files, comments, makes and remixes
-        all_metrics = browser.wait_and_find(By.CLASS_NAME, "MetricButton__tabButton--2rvo1", find_all=True)
-        self._elements['tab_buttons'] = {
-            metric.find_element_by_class_name("MetricButton__tabTitle--2Xau7"): metric.find_element_by_class_name(
-                "MetricButton__metric--FqxBi")
-            for metric in all_metrics}
+        self._fetch_tab_buttons(browser)
 
-        # obtain all tag elements into a list
-        all_tags = browser.wait_and_find(By.CLASS_NAME, "Tags__widgetBody--19Uop")
+        self._fetch_tags(browser)
+
+        self._fetch_print_settings(browser)
+
+        self._fetch_license(browser)
+
+        self._fetch_remix(browser)
+
+        self._fetch_category(browser)
+
+    def _fetch_category(self, browser):
+        category_box = get_parent(browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CATEGORY_SECTION))
+        self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingClasses.CATEGORY_NAME)
+
+    def _fetch_remix(self, browser):
         try:
-            self._elements['tags'] = [tag for tag in all_tags.find_elements_by_tag_name('a')]
+            remix_box = browser.find_parent(By.CLASS_NAME, elm.ThingClasses.REMIX_SECTION)
+            self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingClasses.REMIX_CARD)
         except NoSuchElementException:
-            self._elements['tags'] = None
+            self._elements['remix'] = None
 
+    def _fetch_license(self, browser):
+        self._elements['license'] = browser.driver.find_element_by_xpath(elm.ThingClasses.LICENSE_PATH)
+
+    def _fetch_print_settings(self, browser):
         # obtain print settings element
         # this is an optional information the creator can provide, so some models may not have this information.
         try:
-            # wait for element to be available
-            browser.wait(By.CLASS_NAME, "ThingPage__blockTitle--3ZdLu")
-            # search for a div tag with certain class that hold the text for print settings
-            print_settings = browser.driver.find_element_by_xpath(
-                '//div[@class="ThingPage__blockTitle--3ZdLu" and text()="Print Settings"]')
-            # obtain parent tag in order to access actual print settings
-            print_settings_parent = print_settings.find_element_by_xpath('..')
-            # each provided setting appears in a new p tag so save all of them into elements
-            self._elements['print_settings'] = print_settings_parent.find_elements_by_tag_name('p')
+            print_settings = browser.find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
+            self._elements['print_settings'] = print_settings.find_elements_by_class_name(
+                elm.ThingClasses.PRINT_SETTING)
         except NoSuchElementException:
             self._elements['print_settings'] = None
 
-        # Model License
-        self._elements['license'] = browser.driver.find_element_by_xpath(
-            "//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]")
+    def _fetch_tags(self, browser):
+        # obtain all tag elements into a list
+        all_tags = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAG_LIST)
+        try:
+            self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingClasses.TAG_SINGLE)]
+        except NoSuchElementException:
+            self._elements['tags'] = None
+
+    def _fetch_tab_buttons(self, browser):
+        # obtain tab buttons holding metric information: files, comments, makes and remixes
+        all_metrics = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAB_BUTTON, find_all=True)
+        self._elements['tab_buttons'] = {
+            metric.find_element_by_class_name(elm.ThingClasses.TAB_TITLE): metric.find_element_by_class_name(
+                elm.ThingClasses.METRIC)
+            for metric in all_metrics}
+
+    def _fetch_created_by(self, browser):
+        # obtain element holding both the creator name and the uploaded date
+        self._elements['created_by'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CREATED_BY)
+
+    def _fetch_model_name(self, browser):
+        # obtain element holding the model (thing) name
+        self._elements['model_name'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.MODEL_NAME)
 
     def parse_all(self, clear_cache=True):
         """Obtain information from elements previously fetched for the thing.
@@ -167,36 +199,58 @@ class Thing:
                Parameters:
                 clear_cache (bool): Clear previously fetched elements from memory after parsing. (Default: True)
         """
+
+        if not self._elements:
+            raise RuntimeError("Elements must be fetched first before being parsed. Use Thing.fetch_all.")
+
         # model name
-        self.properties['model_name'] = self._elements['model_name'].text
+        self._parse_model_name()
 
         # get username found inside a tag text
-        self.properties['creator_username'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
-            'text')
+        self._parse_creator_username()
         # get username profile url provided as a tag href
-        self.properties['creator_url'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
-            'href')
+        self._parse_creator_url()
 
-        # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
-        date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
-
-        # convert string date into actual date using datetime package. Date saved in epoch format.
-        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
+        self._parse_upload_date()
 
         # Metric information
-        # set tab buttons to be ignore (hold not useful information)
-        ignore_buttons = ('Thing Details', 'Apps')
-        # for each tab button element, add it's name (converted using field_it function) and value to properties
-        for key, value in self._elements['tab_buttons'].items():
-            if key.text not in ignore_buttons:
-                # using tab button names as field names. lowering case and replacing spaces with underscore
-                # cast matric ast int
-                self.properties[field_it(key.text)] = int(value.text)
+        self._parse_metrics()
 
-        # Obtain text from each tag element add add them all as a list to properties
-        self.properties['tags'] = [tag.text for tag in self._elements['tags']]
+        # Tags into list
+        self._parse_tags()
 
-        # print settings
+        # Print settings
+        self._parse_print_settings()
+
+        # License
+        self._parse_license()
+
+        # Remix
+        self._parse_remix()
+
+        # Category
+        self._parse_category()
+
+        # Clearing cache
+        if clear_cache:
+            self.clear_elements()
+
+    def clear_elements(self) :
+        self._elements.clear()
+
+    def _parse_category(self):
+        self.properties['category'] = self._elements['category'].text
+
+    def _parse_remix(self):
+        if self._elements['remix'] is not None:
+            self.properties['remix'] = self._elements['remix'].get_attribute('href').split(sep=":")[-1]
+        else:
+            self.properties['remix'] = None
+
+    def _parse_license(self):
+        self.properties['license'] = self._elements['license'].text
+
+    def _parse_print_settings(self):
         # listing all possible fields for print settings provided by thingiverse
         possible_print_settings = ["Printer Brand",
                                    "Printer Model",
@@ -207,10 +261,8 @@ class Thing:
                                    "Filament Brand",
                                    "Filament Color",
                                    "Filament Material"]
-
         # add empty print settings to properties (as some models may not have any print settings information
-        self.properties.update({field_it(key): None for key in possible_print_settings})
-
+        self.properties.update({to_field_format(key): None for key in possible_print_settings})
         if self._elements['print_settings'] is not None:
             # define regex search patter to obtain setting and its value
             pattern = r"(.*):<div>(.*)</div>"
@@ -219,20 +271,45 @@ class Thing:
                 regex_result = re.search(pattern, setting.get_attribute('innerHTML'))
 
                 if regex_result is not None:
-                    # updating print settings (group 1 or regex resutls) with its value (group 2 of regex results) into the properties
-                    self.properties.update({field_it(regex_result.group(1)): regex_result.group(2)})
+                    # updating print settings (group 1 or regex results) with its value (group 2 of regex results) into the properties
+                    self.properties.update({to_field_format(regex_result.group(1)): regex_result.group(2)})
 
-        # license
-        self.properties['license'] = self._elements['license'].text
+    def _parse_tags(self):
+        # Obtain text from each tag element add add them all as a list to properties
+        self.properties['tags'] = [tag.text for tag in self._elements['tags']]
 
-        if clear_cache:
-            self._elements.clear()
+    def _parse_metrics(self):
+        # set tab buttons to be ignore (hold not useful information)
+        ignore_buttons = ('Thing Details', 'Apps')
+        # for each tab button element, add it's name (converted using to_field_format function) and value to properties
+        for key, value in self._elements['tab_buttons'].items():
+            if key.text not in ignore_buttons:
+                # using tab button names as field names. lowering case and replacing spaces with underscore
+                # cast matric ast int
+                self.properties[to_field_format(key.text)] = int(value.text)
+
+    def _parse_upload_date(self):
+        # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
+        date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
+        # convert string date into actual date using datetime package. Date saved in epoch format.
+        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
+
+    def _parse_creator_url(self):
+        self.properties['creator_url'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
+            'href')
+
+    def _parse_creator_username(self):
+        self.properties['creator_username'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
+            'text')
+
+    def _parse_model_name(self):
+        self.properties['model_name'] = self._elements['model_name'].text
 
     def get_json(self):
         """
         Returns a single dictionary holding all information about the thing.
         """
-        result = {'thing_id': self.thing_id, 'url':self.url}
+        result = {'thing_id': self.thing_id, 'url': self.url}
         result.update(self.properties)
         return result
 
@@ -307,7 +384,7 @@ class Browser:
 
         # wait for given element to be available. raise error if timeout has been reached.
         WebDriverWait(self.driver, timeout).until(
-            EC.presence_of_element_located((by, name))
+            ec.presence_of_element_located((by, name))
         )
 
     def find(self, by, name, find_all=False):
@@ -336,12 +413,17 @@ class Browser:
                 by (selenium.webdriver.common.by): html tag attribute to search for
                 name (str): the 'by' value to search for
                 timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on config.py
+                find_all (bool): if true, a list of all found elements is returned. Default: False.
                 regex (bool): if true, regex search patterns are enabled for 'name'.
                Returns:
                 (webdriver.remote.webelement.WebElement): the found element(s)
         """
         self.wait(by, name, timeout, regex)
         return self.find(by, name, find_all)
+
+    def find_parent(self, *args, **kwargs):
+        found_element = self.find(*args, **kwargs)
+        return found_element.find_element_by_xpath('..')
 
 
 def main():

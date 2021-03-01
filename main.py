@@ -2,22 +2,29 @@ from ThingScraper import Browser, Thing
 import config as conf
 from selenium.webdriver.common.by import By
 import json
+import webpage_elements as elm
 
-BROWSER_TYPE = "chrome"
-URL = "https://www.thingiverse.com/"
-URL_FRONT = "https://www.thingiverse.com/"
-ELEMENT_NAME = "ThingCard__thingCard--1IcHY"
-ELEMENT_LINK = "ThingCardBody__cardBodyWrapper--ba5pu"
-ELEMENT_PROJECT = "ThingCard__thingCard--1IcHY"
-ELEMENT_NEXT_PAGE = "Pagination__button--2X-2z Pagination__more--24exV"
-ELEMENT_LIKES = "CardActionItem__textWrapper--2wTM-"
-TIMEOUT_TOLERANCE = 5
-THINGS_PER_PAGE = 20
-PAGES_TO_SCAN = 500
-URL_SEARCH_EXAMPLE = r"https://www.thingiverse.com/search?page=3&per_page=20&sort=popular&posted_after=now-30d&type=things&q="
-SEARCH_PARAM_FRONT = r"search?page="
-SEARCH_PARAM_END = r"&per_page=20&sort=popular&posted_after=now-30d&type=things&q="
+
 NEW_FILE = True
+
+
+def parse_explore_url(sort_='popular', time_restriction=None, page=1):
+    """
+    Generates a url that leads to an explore page based on given parameters
+    :param sort_: sort type. can be: popular, newest or makes
+    :param time_restriction: restriction when sorted by popular: now-7d, now-30d, now-365d, None (All time)
+    :param page: page number
+    :return: url in str format
+    """
+    base_url = conf.MAIN_URL + r'search?type=things&q=&sort='
+    # sort_: popular, newest or makes
+    base_url += sort_
+    if time_restriction:
+        # time_restriction: now-7d, now-30d, now-365d, None (All time)
+        base_url += r"&posted_after=" + time_restriction
+    base_url += r"&page=" + str(page)
+
+    return base_url
 
 
 def save_file(file_path, things_dict):
@@ -60,7 +67,7 @@ def open_file(file_path):
         return res
 
 
-def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
+def scraper_search(browser, pages_to_scan=conf.PAGES_TO_SCAN):
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
     :param browser: The browser we're using
@@ -69,16 +76,16 @@ def scraper_search(browser, pages_to_scan=PAGES_TO_SCAN):
     """
     data = []
     for i in range(pages_to_scan):
-        url = URL + SEARCH_PARAM_FRONT + str(i + 1) + SEARCH_PARAM_END
+        url = parse_explore_url('popular', 'now-30d', i+1)
         browser.get(url)
         projects = []
-        while len(projects) < THINGS_PER_PAGE:
-            projects = browser.wait_and_find(By.CLASS_NAME, ELEMENT_PROJECT, find_all=True)
+        while len(projects) < conf.THINGS_PER_PAGE:
+            projects = browser.wait_and_find(By.CLASS_NAME, elm.ExploreList.THING_CARD, find_all=True)
         print(f"Found {len(projects)} projects on page {i+1}")
         for item in projects:
-            item_id = item.find_element_by_class_name(ELEMENT_LINK).get_attribute("href")
+            item_id = item.find_element_by_class_name(elm.ExploreList.CARD_BODY).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
-            likes = item.find_elements_by_class_name(ELEMENT_LIKES)[1]
+            likes = item.find_elements_by_class_name(elm.ExploreList.THING_LIKES)[1]
             thing = Thing(id=item_id)
             thing['likes'] = int(likes.text)
             data.append((item_id, thing))
@@ -98,7 +105,8 @@ def main():
                     failed.append((key, E))
                     print(f"Failed to retrieve for item id = {key}\n")
                 else:
-                    data[key].print_info()
+                    # data[key].print_info()
+                    print(f"Success: {key}")
             save_file("save.json", data)
     else:
         data = open_file("save.json")
