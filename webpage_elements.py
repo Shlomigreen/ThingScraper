@@ -12,4 +12,10 @@ class ThingClasses:
     REMIX_SECTION = "RemixedFromSection__title--1Wb7x"
     REMIX_CARD = "ThingCardBody__cardBodyWrapper--ba5pu"
     CATEGORY_SECTION = "ThingsMoreSection__showMoreHeading--u2OAR"
-    CATEGORY_NAME = 'ThingsMoreSection__categoryName--3RWut'
+    CATEGORY_NAME = "ThingsMoreSection__categoryName--3RWut"
+
+
+class ExploreList:
+    THING_CARD = "ThingCard__thingCard--1IcHY"
+    CARD_BODY = "ThingCardBody__cardBodyWrapper--ba5pu"
+    THING_LIKES = "CardActionItem__textWrapper--2wTM-"

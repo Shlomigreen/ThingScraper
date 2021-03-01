@@ -10,9 +10,6 @@ import re
 import datetime
 import webpage_elements as elm
 
-# Url of the main domain
-URL = "https://www.thingiverse.com/"
-
 
 def to_field_format(name):
     """
@@ -48,7 +45,7 @@ class Thing:
             self.thing_id = kwargs['url'].split(sep=":")[-1]
         elif kwargs.get('id') is not None:
             self.thing_id = kwargs['id']
-            self.url = URL + "thing:" + kwargs['id']
+            self.url = conf.MAIN_URL + "thing:" + kwargs['id']
 
         # in case no neither id or url were given, raise a value error.
         else:
@@ -63,16 +60,16 @@ class Thing:
     def __getitem__(self, item):
         """
         Implementation of special function to allow retrieving a thing parameter by using squared brackets.
-       :param item: key for the requested thing property.
-       :return: thing property.
+      :param item: key for the requested thing property.
+      :return: thing property.
         """
         return self.properties.get(item)
 
     def __setitem__(self, key, value):
         """
         Implementation of special function to allow setting a thing parameter by using squared brackets.
-       :param key: key for requested thing property
-       :param value: the value to set for the property
+      :param key: key for requested thing property
+      :param value: the value to set for the property
         """
         self.properties[key] = value
 
@@ -80,8 +77,8 @@ class Thing:
         """
         Implementation of special function to allow appending parameters to a thing by using '+' sign.
         Appended object must be of type dict.
-       :param other: dictionary with keys as properties.
-       :return: self
+      :param other: dictionary with keys as properties.
+      :return: self
         """
 
         # verify given parameter to be of type dict
@@ -94,14 +91,14 @@ class Thing:
     def __str__(self):
         """
         Implementation of special function to allow str casting of thing instance.
-       :return: thing's url
+      :return: thing's url
         """
         return self.url
 
     def __repr__(self):
         """
         Implementation of special function to allow representation of a thing instance.
-       :return: thing's url
+      :return: thing's url
         """
         return self.url
 
@@ -127,7 +124,7 @@ class Thing:
     def fetch_all(self, browser):
         """
         Breaks down the thing's url into elements (tags and classes) holding properties.
-       :param browser: Browser object the be used for accessing the thing's url.
+      :param browser: Browser object the be used for accessing the thing's url.
         """
         # open thing url
         self._open_url(browser)
@@ -148,53 +145,51 @@ class Thing:
 
         self._fetch_category(browser)
 
-    def _fetch_category(self, browser) :
+    def _fetch_category(self, browser):
         category_box = get_parent(browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CATEGORY_SECTION))
         self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingClasses.CATEGORY_NAME)
 
-    def _fetch_remix(self, browser) :
-        # remix
-        try :
+    def _fetch_remix(self, browser):
+        try:
             remix_box = browser.find_parent(By.CLASS_NAME, elm.ThingClasses.REMIX_SECTION)
             self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingClasses.REMIX_CARD)
-        except NoSuchElementException :
+        except NoSuchElementException:
             self._elements['remix'] = None
 
-    def _fetch_license(self, browser) :
-        # Model License
+    def _fetch_license(self, browser):
         self._elements['license'] = browser.driver.find_element_by_xpath(elm.ThingClasses.LICENSE_PATH)
 
-    def _fetch_print_settings(self, browser) :
+    def _fetch_print_settings(self, browser):
         # obtain print settings element
         # this is an optional information the creator can provide, so some models may not have this information.
-        try :
-            print_settings = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
+        try:
+            print_settings = browser.find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
             self._elements['print_settings'] = print_settings.find_elements_by_class_name(
                 elm.ThingClasses.PRINT_SETTING)
-        except NoSuchElementException :
+        except NoSuchElementException:
             self._elements['print_settings'] = None
 
-    def _fetch_tags(self, browser) :
+    def _fetch_tags(self, browser):
         # obtain all tag elements into a list
         all_tags = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAG_LIST)
-        try :
+        try:
             self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingClasses.TAG_SINGLE)]
-        except NoSuchElementException :
+        except NoSuchElementException:
             self._elements['tags'] = None
 
-    def _fetch_tab_buttons(self, browser) :
+    def _fetch_tab_buttons(self, browser):
         # obtain tab buttons holding metric information: files, comments, makes and remixes
         all_metrics = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAB_BUTTON, find_all=True)
         self._elements['tab_buttons'] = {
-            metric.find_element_by_class_name(elm.ThingClasses.TAB_TITLE) : metric.find_element_by_class_name(
+            metric.find_element_by_class_name(elm.ThingClasses.TAB_TITLE): metric.find_element_by_class_name(
                 elm.ThingClasses.METRIC)
             for metric in all_metrics}
 
-    def _fetch_created_by(self, browser) :
+    def _fetch_created_by(self, browser):
         # obtain element holding both the creator name and the uploaded date
         self._elements['created_by'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CREATED_BY)
 
-    def _fetch_model_name(self, browser) :
+    def _fetch_model_name(self, browser):
         # obtain element holding the model (thing) name
         self._elements['model_name'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.MODEL_NAME)
 
@@ -206,7 +201,7 @@ class Thing:
         """
 
         if not self._elements:
-            raise RuntimeError("Elements must be fetched first before being parsed. See Thing.fetch_all.")
+            raise RuntimeError("Elements must be fetched first before being parsed. Use Thing.fetch_all.")
 
         # model name
         self._parse_model_name()
@@ -221,37 +216,41 @@ class Thing:
         # Metric information
         self._parse_metrics()
 
+        # Tags into list
         self._parse_tags()
 
-        # print settings
+        # Print settings
         self._parse_print_settings()
 
-        # license
+        # License
         self._parse_license()
 
-        # remix
+        # Remix
         self._parse_remix()
 
-        # category
+        # Category
         self._parse_category()
 
-        # clearing cache
+        # Clearing cache
         if clear_cache:
-            self._elements.clear()
+            self.clear_elements()
 
-    def _parse_category(self) :
+    def clear_elements(self) :
+        self._elements.clear()
+
+    def _parse_category(self):
         self.properties['category'] = self._elements['category'].text
 
-    def _parse_remix(self) :
-        if self._elements['remix'] is not None :
+    def _parse_remix(self):
+        if self._elements['remix'] is not None:
             self.properties['remix'] = self._elements['remix'].get_attribute('href').split(sep=":")[-1]
-        else :
+        else:
             self.properties['remix'] = None
 
-    def _parse_license(self) :
+    def _parse_license(self):
         self.properties['license'] = self._elements['license'].text
 
-    def _parse_print_settings(self) :
+    def _parse_print_settings(self):
         # listing all possible fields for print settings provided by thingiverse
         possible_print_settings = ["Printer Brand",
                                    "Printer Model",
@@ -263,47 +262,47 @@ class Thing:
                                    "Filament Color",
                                    "Filament Material"]
         # add empty print settings to properties (as some models may not have any print settings information
-        self.properties.update({to_field_format(key) : None for key in possible_print_settings})
-        if self._elements['print_settings'] is not None :
+        self.properties.update({to_field_format(key): None for key in possible_print_settings})
+        if self._elements['print_settings'] is not None:
             # define regex search patter to obtain setting and its value
             pattern = r"(.*):<div>(.*)</div>"
-            for setting in self._elements['print_settings'] :
+            for setting in self._elements['print_settings']:
                 # using regex to obtain setting name and value into two groups
                 regex_result = re.search(pattern, setting.get_attribute('innerHTML'))
 
-                if regex_result is not None :
+                if regex_result is not None:
                     # updating print settings (group 1 or regex results) with its value (group 2 of regex results) into the properties
-                    self.properties.update({to_field_format(regex_result.group(1)) : regex_result.group(2)})
+                    self.properties.update({to_field_format(regex_result.group(1)): regex_result.group(2)})
 
-    def _parse_tags(self) :
+    def _parse_tags(self):
         # Obtain text from each tag element add add them all as a list to properties
         self.properties['tags'] = [tag.text for tag in self._elements['tags']]
 
-    def _parse_metrics(self) :
+    def _parse_metrics(self):
         # set tab buttons to be ignore (hold not useful information)
         ignore_buttons = ('Thing Details', 'Apps')
         # for each tab button element, add it's name (converted using to_field_format function) and value to properties
-        for key, value in self._elements['tab_buttons'].items() :
-            if key.text not in ignore_buttons :
+        for key, value in self._elements['tab_buttons'].items():
+            if key.text not in ignore_buttons:
                 # using tab button names as field names. lowering case and replacing spaces with underscore
                 # cast matric ast int
                 self.properties[to_field_format(key.text)] = int(value.text)
 
-    def _parse_upload_date(self) :
+    def _parse_upload_date(self):
         # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
         date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
         # convert string date into actual date using datetime package. Date saved in epoch format.
         self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
 
-    def _parse_creator_url(self) :
+    def _parse_creator_url(self):
         self.properties['creator_url'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
             'href')
 
-    def _parse_creator_username(self) :
+    def _parse_creator_username(self):
         self.properties['creator_username'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
             'text')
 
-    def _parse_model_name(self) :
+    def _parse_model_name(self):
         self.properties['model_name'] = self._elements['model_name'].text
 
     def get_json(self):
