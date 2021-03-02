@@ -57,6 +57,12 @@ class Thing:
         prop_value = kwargs.get('properties')
         self.properties = prop_value if prop_value is not None else dict()
 
+        # Set browser as thing's property, if given, None otherwise.
+        if kwargs.get('browser'):
+            self.browser = kwargs['browser']
+        else:
+            self.browser = None
+
     def __getitem__(self, item):
         """
         Implementation of special function to allow retrieving a thing parameter by using squared brackets.
@@ -118,80 +124,94 @@ class Thing:
         """
         return tuple(self.properties.keys())
 
-    def _open_url(self, browser):
-        browser.get(self.url)
+    def _open_url(self):
+        """
+        In case the current url in the opened browser is not refering for the thing url, open it.
+        """
 
-    def fetch_all(self, browser):
+        # If the thing instance has not browser defined, raise an error
+        if not self.browser:
+            raise NameError("Thing object has not browser defined. See 'thing.browser'.")
+        # if a browser is defined, check the opened url and match it for the thing's url
+        elif self.browser.opened_url() != self.url:
+            self.browser.get(self.url)
+
+    def fetch_all(self, browser=None):
         """
         Breaks down the thing's url into elements (tags and classes) holding properties.
       :param browser: Browser object the be used for accessing the thing's url.
         """
-        # open thing url
-        self._open_url(browser)
 
-        self._fetch_model_name(browser)
+        # define instance's browser to preserve old usage
+        if browser:
+            self.browser = browser
 
-        self._fetch_created_by(browser)
+        # open url
+        self._open_url()
 
-        self._fetch_tab_buttons(browser)
+        self._fetch_model_name()
 
-        self._fetch_tags(browser)
+        self._fetch_created_by()
 
-        self._fetch_print_settings(browser)
+        self._fetch_tab_buttons()
 
-        self._fetch_license(browser)
+        self._fetch_tags()
 
-        self._fetch_remix(browser)
+        self._fetch_print_settings()
 
-        self._fetch_category(browser)
+        self._fetch_license()
 
-    def _fetch_category(self, browser):
-        category_box = get_parent(browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CATEGORY_SECTION))
+        self._fetch_remix()
+
+        self._fetch_category()
+
+    def _fetch_category(self):
+        category_box = get_parent(self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CATEGORY_SECTION))
         self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingClasses.CATEGORY_NAME)
 
-    def _fetch_remix(self, browser):
+    def _fetch_remix(self):
         try:
-            remix_box = browser.find_parent(By.CLASS_NAME, elm.ThingClasses.REMIX_SECTION)
+            remix_box = self.browser.find_parent(By.CLASS_NAME, elm.ThingClasses.REMIX_SECTION)
             self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingClasses.REMIX_CARD)
         except NoSuchElementException:
             self._elements['remix'] = None
 
-    def _fetch_license(self, browser):
-        self._elements['license'] = browser.driver.find_element_by_xpath(elm.ThingClasses.LICENSE_PATH)
+    def _fetch_license(self):
+        self._elements['license'] = self.browser.driver.find_element_by_xpath(elm.ThingClasses.LICENSE_PATH)
 
-    def _fetch_print_settings(self, browser):
+    def _fetch_print_settings(self) :
         # obtain print settings element
         # this is an optional information the creator can provide, so some models may not have this information.
         try:
-            print_settings = browser.find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
+            print_settings = self.browser.find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
             self._elements['print_settings'] = print_settings.find_elements_by_class_name(
                 elm.ThingClasses.PRINT_SETTING)
         except NoSuchElementException:
             self._elements['print_settings'] = None
 
-    def _fetch_tags(self, browser):
+    def _fetch_tags(self):
         # obtain all tag elements into a list
-        all_tags = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAG_LIST)
+        all_tags = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAG_LIST)
         try:
             self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingClasses.TAG_SINGLE)]
         except NoSuchElementException:
             self._elements['tags'] = None
 
-    def _fetch_tab_buttons(self, browser):
+    def _fetch_tab_buttons(self):
         # obtain tab buttons holding metric information: files, comments, makes and remixes
-        all_metrics = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAB_BUTTON, find_all=True)
+        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAB_BUTTON, find_all=True)
         self._elements['tab_buttons'] = {
             metric.find_element_by_class_name(elm.ThingClasses.TAB_TITLE): metric.find_element_by_class_name(
                 elm.ThingClasses.METRIC)
             for metric in all_metrics}
 
-    def _fetch_created_by(self, browser):
+    def _fetch_created_by(self) :
         # obtain element holding both the creator name and the uploaded date
-        self._elements['created_by'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CREATED_BY)
+        self._elements['created_by'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CREATED_BY)
 
-    def _fetch_model_name(self, browser):
+    def _fetch_model_name(self):
         # obtain element holding the model (thing) name
-        self._elements['model_name'] = browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.MODEL_NAME)
+        self._elements['model_name'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.MODEL_NAME)
 
     def parse_all(self, clear_cache=True):
         """Obtain information from elements previously fetched for the thing.
@@ -314,6 +334,7 @@ class Thing:
         return result
 
 
+
 class Browser:
     """
     Browser class manages the browser to be opened and it's driver.
@@ -368,6 +389,12 @@ class Browser:
         Equivalent to Browser.driver.close method
         """
         self.driver.close()
+
+    def opened_url(self):
+        """
+        Returns the currently opened url.
+        """
+        return self.driver.current_url
 
     def wait(self, by, name, timeout=conf.get_wait_timeout, regex=False):
         """
