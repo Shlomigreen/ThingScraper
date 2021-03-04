@@ -34,9 +34,25 @@ class ExploreList:
 
 
 class UserSettings:
+    # Urls
     BASE_URL = f"https://www.thingiverse.com/{PLACE_HOLDER}/designs"
+
+    # Regex
     USERNAME_REGEX = r"thingiverse.com/(.*)/"  # Regex string to search for username out of url. Group 1 is taken from this.
 
+    # Classes
+    PROFILE_ACTION_POSSIBLE_LABELS = ['followers', 'following', 'designs']
+    PROFILE_ACTION_ITEM = "ProfileActionItem__container--1fTdX"
+    PROFILE_ACTION_COUNT = "ProfileActionItem__count--1MaXx"
+    PROFILE_ACTION_LABEL = "ProfileActionItem__label--2OlG9"
+
+    TAB_POSSIBLE_LABELS = ['favorites', 'designs', 'collections', 'makes', 'likes']
+    TAB_BUTTON = "MetricButton__tabButton--2rvo1"
+    TAB_TITLE = "MetricButton__tabTitle--2Xau7"
+    TAB_METRIC = "MetricButton__metric--FqxBi"
+
+    ABOUT_WIDGET_TITLE = "UserAboutWidget__typesWrapper--1r1kj"
+    ABOUT_WIDGET_SKILL = "UserAboutWidget__skillLevelWrapper--3eHjx"
 
 class MakeSettings:
     BASE_URL = f"https://www.thingiverse.com/make:{PLACE_HOLDER}"

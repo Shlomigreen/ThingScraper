@@ -138,6 +138,9 @@ class ScrapedData :
         elif self.browser.opened_url() != self.url :
             self.browser.get(self.url)
 
+    def clear_elements(self) :
+        self._elements.clear()
+
 
 class User(ScrapedData) :
     def __init__(self, username=None, **kwargs) :
@@ -155,6 +158,117 @@ class User(ScrapedData) :
 
         super().__init__(url=url, **kwargs)
         self.properties['username'] = username
+
+    def _fetch_action_item(self, name) :
+        """
+        Fetch action item element by given name.
+        :param name: followers, following or designs
+        """
+        if name.lower() not in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
+            raise ValueError(f'Name must be followers, following or designs. Given name: {name}')
+
+        label_element = self.browser.find_text('span', gconf.UserSettings.PROFILE_ACTION_LABEL, name.title())
+        action_item = self.browser.find_parent(label_element)
+
+        self._elements[to_field_format(name)] = action_item.find_element_by_class_name(
+            gconf.UserSettings.PROFILE_ACTION_COUNT)
+
+    def _fetch_tab_button(self, label) :
+        """
+        Fetch tab button element by given label.
+        :param label: favorites, designs, collections, makes or likes
+        """
+        if label not in gconf.UserSettings.TAB_POSSIBLE_LABELS :
+            raise ValueError(
+                f'Label must be one of {",".join(gconf.UserSettings.TAB_POSSIBLE_LABELS)}. Given label: {label}')
+
+        label_element = self.browser.find_text('div', gconf.UserSettings.TAB_TITLE, label.title())
+        tab_button = self.browser.find_parent(label_element)
+
+        self._elements[to_field_format(label)] = tab_button.find_element_by_class_name(gconf.UserSettings.TAB_METRIC)
+
+    def _fetch_title(self) :
+        self._elements['title'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.UserSettings.ABOUT_WIDGET_TITLE)
+
+    def _fetch_skill(self) :
+        self._elements['skill'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.UserSettings.ABOUT_WIDGET_SKILL)
+
+    def _parse_action_item(self, name) :
+        """
+        Parse action item element by given name.
+        :param name: followers, following or designs
+        """
+        if name.lower() not in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
+            raise ValueError(f'Name must be followers, following or designs. Given name: {name}')
+
+        name = to_field_format(name)
+        self.properties[name] = self._elements[name].text
+
+    def _parse_tab_button(self, label) :
+        """
+        Parse tab button element of given label.
+        :param label: favorites, designs, collections, makes or likes
+        """
+        if label not in gconf.UserSettings.TAB_POSSIBLE_LABELS :
+            raise ValueError(
+                f'Label must be one of {",".join(gconf.UserSettings.TAB_POSSIBLE_LABELS)}. Given label: {label}')
+
+        label = to_field_format(label)
+        self.properties[label] = self._elements[label].text
+
+    def _parse_title(self) :
+        self.properties['titles'] = self._elements["title"].text.lower().split('\n')
+
+    def _parse_skill(self) :
+        self.properties['skill_level'] = self._elements['skill'].text.lower()
+
+    def fetch_all(self):
+        """
+        Breaks down the users's url into elements (tags and classes) holding properties.
+        """
+        # open url
+        self._open_url()
+
+        # action items
+        for name in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS:
+            self._fetch_action_item(name)
+
+        # tab buttons
+        for label in gconf.UserSettings.TAB_POSSIBLE_LABELS :
+            self._fetch_tab_button(label)
+
+        # titles
+        self._fetch_title()
+
+        # skill level
+        self._fetch_skill()
+    
+    def parse_all(self, clear_cache=True) :
+        """Obtain information from elements previously fetched for the user.
+
+               Parameters:
+                clear_cache (bool): Clear previously fetched elements from memory after parsing. (Default: True)
+        """
+
+        if not self._elements :
+            raise RuntimeError("Elements must be fetched first before being parsed. Use .fetch_all.")
+
+        # Action items
+        for item in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS:
+            self._parse_action_item(item)
+
+        # Tab buttons
+        for label in gconf.UserSettings.TAB_POSSIBLE_LABELS:
+            self._parse_tab_button(label)
+        
+        # titles
+        self._parse_title()
+        
+        # skill level
+        self._parse_skill()
+
+        if clear_cache:
+            self.clear_elements()
 
 
 class Make(ScrapedData) :
@@ -176,6 +290,7 @@ class Make(ScrapedData) :
         self.properties['make_id'] = make_id
 
 
+# TODO: Update thing to user ScrapedData as parent
 class Thing :
     """
     Thing class is design to hold single thing page information.
@@ -321,7 +436,7 @@ class Thing :
 
     def _fetch_remix(self) :
         try :
-            remix_box = self.browser.find_parent(By.CLASS_NAME, elm.ThingSettings.REMIX_SECTION)
+            remix_box = self.browser.find_parent(by=By.CLASS_NAME, name=elm.ThingSettings.REMIX_SECTION)
             self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingSettings.REMIX_CARD)
         except NoSuchElementException :
             self._elements['remix'] = None
@@ -512,7 +627,7 @@ class Browser :
                 f"Requested browser '{name}' not available. Usable browsers:\n {list(Browser.available_browsers.keys())}")
 
         # minimise the opened browser
-        self.driver.minimize_window()
+        # self.driver.minimize_window()
 
     def __enter__(self) :
         """
@@ -597,18 +712,28 @@ class Browser :
         self.wait(by, name, timeout, regex)
         return self.find(by, name, find_all)
 
-    def find_parent(self, *args, **kwargs) :
-        found_element = self.find(*args, **kwargs)
-        return found_element.find_element_by_xpath('..')
+    def find_parent(self, element=None, *args, **kwargs) :
+        if element is None :
+            element = self.find(*args, **kwargs)
+        return element.find_element_by_xpath('..')
+
+    def find_text(self, tag, class_name, text, wait=True) :
+        if wait :
+            self.wait(By.CLASS_NAME, class_name)
+
+        return self.driver.find_element_by_xpath(f"//{tag}[contains(@class,'{class_name}') and text()='{text}']")
 
 
 def main() :
     with Browser(pconf.browser, pconf.driver_path) as browser :
-        # thing = Thing(id='4734271')
-        # thing.fetch_all(browser)
-        # thing.parse_all()
-
         user = User('brainchecker', browser=browser)
+        user.fetch_all()
+        user.parse_all()
+        user.print_info()
+
+        thing = Thing(id='4734271')
+        thing.fetch_all(browser)
+        thing.parse_all()
 
         # testing several properties
         assert thing.properties['creator_username'] == 'brainchecker'
