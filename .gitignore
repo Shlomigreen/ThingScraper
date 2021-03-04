@@ -132,4 +132,4 @@ dmypy.json
 chromedriver
 
 # configurations
-# config.py
+# personal_config.py
