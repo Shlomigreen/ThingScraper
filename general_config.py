@@ -6,6 +6,8 @@ PLACE_HOLDER = '%%'
 
 
 class ThingSettings :
+    BASE_URL = f"https://www.thingiverse.com/thing:{PLACE_HOLDER}"
+
     # Classes
     MODEL_NAME = "ThingPage__modelName--3CMsV"
     CREATED_BY = "ThingPage__createdBy--1fVAy"
@@ -32,4 +34,10 @@ class ExploreList:
 
 
 class UserSettings:
-    USER_URL = f"https://www.thingiverse.com/{PLACE_HOLDER}/designs"
+    BASE_URL = f"https://www.thingiverse.com/{PLACE_HOLDER}/designs"
+    USERNAME_REGEX = r"thingiverse.com/(.*)/"  # Regex string to search for username out of url. Group 1 is taken from this.
+
+
+class MakeSettings:
+    BASE_URL = f"https://www.thingiverse.com/make:{PLACE_HOLDER}"
+    ID_REGEX = r"make:(\d*)"
