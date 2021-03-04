@@ -1,8 +1,8 @@
+import general_config as gconf
+import personal_config as pconf
 from ThingScraper import Browser, Thing
-import config as conf
 from selenium.webdriver.common.by import By
 import json
-import webpage_elements as elm
 
 
 NEW_FILE = True
@@ -16,7 +16,7 @@ def parse_explore_url(sort_='popular', time_restriction=None, page=1):
     :param page: page number
     :return: url in str format
     """
-    base_url = conf.MAIN_URL + r'search?type=things&q=&sort='
+    base_url = gconf.MAIN_URL + r'search?type=things&q=&sort='
     # sort_: popular, newest or makes
     base_url += sort_
     if time_restriction:
@@ -67,7 +67,7 @@ def open_file(file_path):
         return res
 
 
-def scraper_search(browser, pages_to_scan=conf.PAGES_TO_SCAN):
+def scraper_search(browser, pages_to_scan=gconf.PAGES_TO_SCAN):
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
     :param browser: The browser we're using
@@ -79,13 +79,13 @@ def scraper_search(browser, pages_to_scan=conf.PAGES_TO_SCAN):
         url = parse_explore_url('popular', 'now-30d', i+1)
         browser.get(url)
         projects = []
-        while len(projects) < conf.THINGS_PER_PAGE:
-            projects = browser.wait_and_find(By.CLASS_NAME, elm.ExploreList.THING_CARD, find_all=True)
+        while len(projects) < gconf.THINGS_PER_PAGE :
+            projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
         print(f"Found {len(projects)} projects on page {i+1}")
         for item in projects:
-            item_id = item.find_element_by_class_name(elm.ExploreList.CARD_BODY).get_attribute("href")
+            item_id = item.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
-            likes = item.find_elements_by_class_name(elm.ExploreList.THING_LIKES)[1]
+            likes = item.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1]
             thing = Thing(id=item_id)
             thing['likes'] = int(likes.text)
             data.append((item_id, thing))
@@ -94,7 +94,7 @@ def scraper_search(browser, pages_to_scan=conf.PAGES_TO_SCAN):
 
 def main():
     if NEW_FILE:
-        with Browser(conf.browser, conf.driver_path) as browser:
+        with Browser(pconf.browser, pconf.driver_path) as browser:
             data = scraper_search(browser, 1)
             failed = []
             for key in data:

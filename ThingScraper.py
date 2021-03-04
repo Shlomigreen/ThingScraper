@@ -4,11 +4,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.common.exceptions import NoSuchElementException
 
-import config as conf
+import general_config as gconf
+import personal_config as pconf
 import os
 import re
 import datetime
-import webpage_elements as elm
+import general_config as elm
 
 
 def to_field_format(name):
@@ -24,6 +25,132 @@ def get_parent(element):
     """
 
     return element.find_element_by_xpath('..')
+
+
+class ScrapedData:
+    def __init__(self, browser, url=None, properties=None):
+
+        if url is not None:
+            self.properties = {'url': url}
+        elif properties is not None:
+            if 'url' not in properties.keys():
+                raise ValueError('Given properties for creating new object must include a url key.')
+            self.properties = properties
+        else:
+            raise AttributeError('Create new scrape data object must be by using url or properties dictionary with url.')
+
+        # Declaring empty dictionary to hold page elements
+        self._elements = dict()
+
+        # Set browser as object's property
+        self.browser = browser
+
+    def __getitem__(self, item):
+        """
+        Implementation of special function to allow retrieving an object parameter by using squared brackets.
+      :param item: key for the requested object property.
+      :return: object property.
+        """
+        return self.properties.get(item)
+
+    def __setitem__(self, key, value):
+        """
+        Implementation of special function to allow setting an object parameter by using squared brackets.
+      :param key: key for requested object property
+      :param value: the value to set for the property
+        """
+        self.properties[key] = value
+
+    def __add__(self, other):
+        """
+        Implementation of special function to allow appending parameters to an object by using '+' sign.
+        Appended object must be of type dict.
+      :param other: dictionary with keys as properties.
+      :return: self
+        """
+
+        # verify given parameter to be of type dict
+        if isinstance(other, dict):
+            self.properties.update(other)
+        else:
+            raise TypeError(f"Can only add dictionary, not {type(other)}.")
+        return self
+
+    def __str__(self):
+        """
+        Implementation of special function to allow str casting of object instance.
+      :return: object's url
+        """
+        return self.properties['url']
+
+    def __repr__(self):
+        """
+        Implementation of special function to allow representation of an object instance.
+      :return: object's url
+        """
+        return self.properties['url']
+
+    def print_info(self):
+        """
+        Prints full information about the object instance.
+        """
+        output = []
+        for key in self.properties:
+            output.append(f"\t{key} = {self.properties[key]}")
+        print("\n".join(output))
+
+    def keys(self):
+        """
+        Returns all property names held for the thing instance.
+        """
+        return tuple(self.properties.keys())
+
+    def _open_url(self):
+        """
+        In case the current url in the opened browser is not refering for the object's url, open it.
+        """
+
+        # If the object instance has not browser defined, raise an error
+        if not self.browser:
+            raise NameError("Object has no browser defined. See '.browser' attribute.")
+        # if a browser is defined, check the opened url and match it for the thing's url
+        elif self.browser.opened_url() != self.properties['url']:
+            self.browser.get(self.properties['url'])
+
+
+class User(ScrapedData):
+    def __init__(self, username=None, **kwargs):
+
+        if username is not None:
+            url = gconf.UserSettings.USER_URL.replace(gconf.PLACE_HOLDER, username)
+            super().__init__(url=url, **kwargs)
+            self.properties['username'] = username
+        elif kwargs.get('url') is not None:
+            username = re.search(r"thingiverse.com/(.*)/", kwargs['url']).group(1)
+
+        # TODO: Fix below
+        super().__init__(**kwargs)
+
+        # Validating construction arguments and adding them as instance arguments
+        # TODO: Fix this
+        if kwargs.get('url') is not None:
+            username = re.search(r"thingiverse.com/(.*)/", kwargs['url']).group(1)
+            self.properties['username'] = username
+
+        elif username is not None:
+            self.properties['username'] = kwargs['username']
+
+        # in case no neither username or url were given, raise a value error.
+        else:
+            raise ValueError(
+                "Construction arguments for user object must include either username, url or properties (as dictionary). Given arguments:", kwargs)
+
+        # save full url to properties
+        self.properties['url'] = f"https://www.thingiverse.com/{self.properties['username']}/designs"
+
+
+class Make:
+    pass
 
 
 class Thing:
@@ -45,8 +172,7 @@ class Thing:
             self.thing_id = kwargs['url'].split(sep=":")[-1]
         elif kwargs.get('id') is not None:
             self.thing_id = kwargs['id']
-            self.url = conf.MAIN_URL + "thing:" + kwargs['id']
-
+            self.url = gconf.MAIN_URL + "thing:" + kwargs['id']
         # in case no neither id or url were given, raise a value error.
         else:
             raise ValueError(
@@ -166,52 +292,52 @@ class Thing:
         self._fetch_category()
 
     def _fetch_category(self):
-        category_box = get_parent(self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CATEGORY_SECTION))
-        self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingClasses.CATEGORY_NAME)
+        category_box = get_parent(self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.CATEGORY_SECTION))
+        self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingSettings.CATEGORY_NAME)
 
     def _fetch_remix(self):
         try:
-            remix_box = self.browser.find_parent(By.CLASS_NAME, elm.ThingClasses.REMIX_SECTION)
-            self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingClasses.REMIX_CARD)
+            remix_box = self.browser.find_parent(By.CLASS_NAME, elm.ThingSettings.REMIX_SECTION)
+            self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingSettings.REMIX_CARD)
         except NoSuchElementException:
             self._elements['remix'] = None
 
     def _fetch_license(self):
-        self._elements['license'] = self.browser.driver.find_element_by_xpath(elm.ThingClasses.LICENSE_PATH)
+        self._elements['license'] = self.browser.driver.find_element_by_xpath(elm.ThingSettings.LICENSE_PATH)
 
     def _fetch_print_settings(self) :
         # obtain print settings element
         # this is an optional information the creator can provide, so some models may not have this information.
         try:
-            print_settings = self.browser.find(By.CLASS_NAME, elm.ThingClasses.PRINT_SETTINGS)
+            print_settings = self.browser.find(By.CLASS_NAME, elm.ThingSettings.PRINT_SETTINGS)
             self._elements['print_settings'] = print_settings.find_elements_by_class_name(
-                elm.ThingClasses.PRINT_SETTING)
+                elm.ThingSettings.PRINT_SETTING)
         except NoSuchElementException:
             self._elements['print_settings'] = None
 
     def _fetch_tags(self):
         # obtain all tag elements into a list
-        all_tags = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAG_LIST)
+        all_tags = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.TAG_LIST)
         try:
-            self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingClasses.TAG_SINGLE)]
+            self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingSettings.TAG_SINGLE)]
         except NoSuchElementException:
             self._elements['tags'] = None
 
     def _fetch_tab_buttons(self):
         # obtain tab buttons holding metric information: files, comments, makes and remixes
-        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.TAB_BUTTON, find_all=True)
+        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.TAB_BUTTON, find_all=True)
         self._elements['tab_buttons'] = {
-            metric.find_element_by_class_name(elm.ThingClasses.TAB_TITLE): metric.find_element_by_class_name(
-                elm.ThingClasses.METRIC)
+            metric.find_element_by_class_name(elm.ThingSettings.TAB_TITLE): metric.find_element_by_class_name(
+                elm.ThingSettings.METRIC)
             for metric in all_metrics}
 
     def _fetch_created_by(self) :
         # obtain element holding both the creator name and the uploaded date
-        self._elements['created_by'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.CREATED_BY)
+        self._elements['created_by'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.CREATED_BY)
 
     def _fetch_model_name(self):
         # obtain element holding the model (thing) name
-        self._elements['model_name'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingClasses.MODEL_NAME)
+        self._elements['model_name'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.MODEL_NAME)
 
     def parse_all(self, clear_cache=True):
         """Obtain information from elements previously fetched for the thing.
@@ -334,7 +460,6 @@ class Thing:
         return result
 
 
-
 class Browser:
     """
     Browser class manages the browser to be opened and it's driver.
@@ -396,13 +521,13 @@ class Browser:
         """
         return self.driver.current_url
 
-    def wait(self, by, name, timeout=conf.get_wait_timeout, regex=False):
+    def wait(self, by, name, timeout=pconf.get_wait_timeout, regex=False):
         """
         Wait for specific element to be present in browser.
             Parameters:
                 by (selenium.webdriver.common.by): html tag attribute to search for
                 name (str): the 'by' value to search for
-                timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on config.py
+                timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on personal_config.py
                 regex (bool): if true, regex search patterns are enabled for 'name'.
         """
         # change the search name to re.compile of regex is enabled
@@ -433,13 +558,13 @@ class Browser:
         else:
             return self.driver.find_element(by, name)
 
-    def wait_and_find(self, by, name, timeout=conf.get_wait_timeout, find_all=False, regex=False):
+    def wait_and_find(self, by, name, timeout=pconf.get_wait_timeout, find_all=False, regex=False):
         """Wait for given element in the opened page on the browser and return the searched result.
            Combination of Browser.wait and Browser.find methods.
             Parameters:
                 by (selenium.webdriver.common.by): html tag attribute to search for
                 name (str): the 'by' value to search for
-                timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on config.py
+                timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on personal_config.py
                 find_all (bool): if true, a list of all found elements is returned. Default: False.
                 regex (bool): if true, regex search patterns are enabled for 'name'.
                Returns:
@@ -454,7 +579,7 @@ class Browser:
 
 
 def main():
-    with Browser(conf.browser, conf.driver_path) as browser:
+    with Browser(pconf.browser, pconf.driver_path) as browser:
         thing = Thing(id='4734271')
         thing.fetch_all(browser)
         thing.parse_all()
