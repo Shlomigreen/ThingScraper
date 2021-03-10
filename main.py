@@ -2,10 +2,8 @@ import general_config as gconf
 import personal_config as pconf
 from ThingScraper import Browser, Thing
 from selenium.webdriver.common.by import By
+import cli
 import json
-
-
-NEW_FILE = True
 
 
 def parse_explore_url(sort_='popular', time_restriction=None, page=1):
@@ -27,7 +25,7 @@ def parse_explore_url(sort_='popular', time_restriction=None, page=1):
     return base_url
 
 
-def save_file(file_path, things_dict):
+def save_json(file_path, things_dict):
     """
     Saves the file
     :param file_path: where to save the file (includes name)
@@ -47,7 +45,7 @@ def save_file(file_path, things_dict):
         return state
 
 
-def open_file(file_path):
+def load_json(file_path):
     """
     Opens saved file
     :param file_path: where to save the file (includes name)
@@ -92,26 +90,86 @@ def scraper_search(browser, pages_to_scan=gconf.PAGES_TO_SCAN):
     return dict(data)
 
 
-def main():
-    if NEW_FILE:
-        with Browser(pconf.browser, pconf.driver_path) as browser:
-            data = scraper_search(browser, 1)
-            failed = []
-            for key in data:
-                try:
-                    data[key].fetch_all(browser)
-                    data[key].parse_all()
-                except Exception as E:
-                    failed.append((key, E))
-                    print(f"Failed to retrieve for item id = {key}\n")
-                else:
-                    # data[key].print_info()
-                    print(f"Success: {key}")
-            save_file("save.json", data)
-    else:
-        data = open_file("save.json")
+def scrape_main_page(volume='q'):
+    f"""
+    Scrape main page for 
+    :param volume: Volume of output text: [q = quit, v = verbose, n = normal]
+    :return: Data we scraped, and a list of ids we failed to scrape
+    """
+    with Browser(pconf.browser, pconf.driver_path) as browser:
+        data = scraper_search(browser, 1)
+        failed = []
         for key in data:
-            data[key].print_info()
+            try:
+                data[key].fetch_all(browser)
+                data[key].parse_all()
+            except Exception as E:
+                failed.append((key, E))
+                if volume != 'q':
+                    print(f"Failed to retrieve for item id = {key}\n")
+            else:
+                if volume != 'q':
+                    print(f"Success: {key}")
+                if volume == 'v':
+                    print(data[key].print_info())
+    return data, failed
+
+
+def scrape_users_in_db(db, volume='q'):
+    # TODO: Implement user scrape
+    print("User scrape not implemented yet")
+    data = db
+    return data, None
+
+
+def scrape_make_in_db(db, volume='q'):
+    # TODO: Implement make scrape
+    print("Make scrape not implemented yet")
+    data = db
+    return data, None
+
+
+def follow_cli(inp, data=[]):
+    """
+    Follow instructions from CLI
+    :param inp: Instructions from CLI
+    :param data: Data about the website
+    :return: Data object updated
+    """
+    a = inp['load_type']
+    if a == 'j':
+        data = load_json(inp['save_name'] + '.json')
+    elif a == 'd':
+        pass
+
+    volume = inp['volume']
+    if inp['search_type'] == 'thing':
+        data, fail = scrape_main_page(volume)
+    elif inp['search_type'] == 'user':
+        data, fail = scrape_users_in_db(data, volume)
+    elif inp['search_type'] == 'make':
+        data, fail = scrape_make_in_db(data, volume)
+    else:
+        print(f"{inp['search_type']} scraping not implemented yet")
+
+    if inp['do_save_json']:
+        save_json(inp['save_name'] + '.json', data)
+
+    return data
+
+
+def main():
+    # get initial input
+    args = cli.inter_parser()
+    data = follow_cli(args)
+    while args['Interactive']:
+        input()
+        args = cli.inter_parser()
+        print(args)
+        print("Interactive mode not implemented yet, quiting")
+        break
+        data = follow_cli(args)
+    print(data)
 
 
 if __name__ == '__main__':
