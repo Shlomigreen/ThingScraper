@@ -73,10 +73,10 @@ def inter_parser(args=None, parser=None):
         'a' if vars(args).get("append", False) else \
         'p' if vars(args).get("print", False) else \
         'n'
-    inp['load_type'] = 'd' if vars(args).get("load-db", False) else \
-        'j' if vars(args).get("load-json", False) else \
+    inp['load_type'] = 'd' if vars(args).get("load_db", False) else \
+        'j' if vars(args).get("load_json", False) else \
         'n'
-    inp['do_save_json'] = vars(args).get("save-json", False)
+    inp['do_save_json'] = vars(args).get("save_json", False)
     inp['Interactive'] = vars(args).get("Interactive", False)
-    inp['preliminary_count'] = vars(args).get("pre-search", 0) if inp['search_type'] != 'thing' else 0
+    inp['preliminary_count'] = vars(args).get("pre_search", 0) if inp['search_type'] != 'thing' else 0
     return inp
