@@ -9,8 +9,10 @@ import personal_config as pconf
 import os
 import re
 import datetime
-import general_config as elm
+import math
 
+
+# region General manipulation functions
 
 def to_field_format(name) :
     """
@@ -29,7 +31,7 @@ def get_parent(element) :
 
 def identifier_from_url(url, regex, group_n=1) :
     """
-    Generates an idendifier from given url based on regex expression.
+    Generates an identifier from given url based on regex expression.
     :param url: the url from which to extract the identifier.
     :param regex: regex expression to user to extract identifier. (must contain at least 1 group)
     :param group_n: which group from the regex expression to return (Default = 1)
@@ -38,17 +40,10 @@ def identifier_from_url(url, regex, group_n=1) :
     return re.search(regex, url).group(group_n)
 
 
-def url_from_identifier(base_url, identifier, place_holder=gconf.PLACE_HOLDER) :
-    """
-    Construction of url from given base url with placeholder and identifier.
-    :param base_url: base url as str with some placeholder for identifier
-    :param identifier: the identifier to be placed instead of the placeholder in the base url
-    :param place_holder: some str that holds the place for identifier in the base url
-    :return: base url with identifier instead of placeholder
-    """
-    return base_url.replace(place_holder, identifier)
+# endregion
 
-
+# region Web pages classes
+# region Parent class
 class ScrapedData :
     def __init__(self, url=None, browser=None, properties=None) :
 
@@ -100,7 +95,7 @@ class ScrapedData :
         Implementation of special function to allow representation of an object instance.
       :return: object type and url
         """
-        return str(type(self)) + ":" + self.url
+        return str(type(self).__name__) + ":" + self.url
 
     def print_info(self) :
         """
@@ -126,7 +121,7 @@ class ScrapedData :
 
         self.browser = browser
 
-    def _open_url(self) :
+    def open_url(self) :
         """
         In case the current url in the opened browser is not refering for the object's url, open it.
         """
@@ -134,6 +129,8 @@ class ScrapedData :
         # If the object instance has not browser defined, raise an error
         if not self.browser :
             raise NameError("Object has no browser defined. See '.browser' attribute or '.set_browser()' method.")
+        elif self.url is None :
+            raise NameError("Object has no URL defined. See '.url' attribute.")
         # if a browser is defined, check the opened url and match it for the thing's url
         elif self.browser.opened_url() != self.url :
             self.browser.get(self.url)
@@ -142,95 +139,169 @@ class ScrapedData :
         self._elements.clear()
 
 
+# endregion
+
+# region child classes
 class User(ScrapedData) :
+    """
+    Hold all relevant information and methods to handle that information for a single user.
+    Attributes:
+        url         - string. Holds the url for the user's page. Constructed from username.
+        properties  - dictionary. Described below.
+
+    Possible properties:
+        username    - string
+        followers   - number of followers the user has
+        following   - number people the user is following
+        designs     - number of 'things' the user has posted, remixes included
+        collections - number of collection the user has created
+        makes       - number of makes (prints of things) the user has posted
+        likes       - number of things the user liked
+        skill_level - string, one of 3: Novice, Intermidate or Expert
+        titles      - list, professional titles a user chose to add to his profile.
+    """
+
     def __init__(self, username=None, **kwargs) :
+        """
+        Construction of new User instance.
+            :param username: user's username. Can be None if 'url' argument is provided.
+            :param kwargs: arguments to be passed to ScrapedData object. Recommended to pass 'url' if username is not given
+            and 'browser' for browser object to be used for the instance.
+        """
+
+        # in case a username is not provided, look up for 'url' argument or
+        # 'properties' attribute with a username key.
         if username is None :
             if 'url' in kwargs :
                 username = identifier_from_url(url=kwargs['url'],
                                                regex=gconf.UserSettings.USERNAME_REGEX)
             elif 'properties' in kwargs and 'username' in kwargs['properties'] :
                 username = kwargs['username']
+
+            # if neither provided, raise an error.
             else :
                 raise ValueError(
                     "'url', 'username' or properties (dictionary with 'username' key) must be provided in order to create User instance.")
-        url = url_from_identifier(base_url=gconf.UserSettings.BASE_URL,
-                                  identifier=username)
 
+        # format a url based on found username (for normalized appearance)
+        url = gconf.UserSettings.BASE_URL.format(username)
+
+        # construction of parent object with url
         super().__init__(url=url, **kwargs)
+
+        # adding found username to instance's properties
         self.properties['username'] = username
 
+    # region Single fetch methods
     def _fetch_action_item(self, name) :
         """
-        Fetch action item element by given name.
-        :param name: followers, following or designs
+        Fetch action item (left panel) element by given name.
+            :param name: followers, following or designs
         """
+
+        # raise error if invalid action item name was given
         if name.lower() not in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
             raise ValueError(f'Name must be followers, following or designs. Given name: {name}')
 
+        # by finding the label of the action item, get the parent html tag as an element
         label_element = self.browser.find_text('span', gconf.UserSettings.PROFILE_ACTION_LABEL, name.title())
         action_item = self.browser.find_parent(label_element)
 
+        # from the parent tag, save the element that holds the action item count
         self._elements[to_field_format(name)] = action_item.find_element_by_class_name(
             gconf.UserSettings.PROFILE_ACTION_COUNT)
 
     def _fetch_tab_button(self, label) :
         """
-        Fetch tab button element by given label.
-        :param label: favorites, designs, collections, makes or likes
+        Fetch tab button element (top panel) by given label.
+            :param label: favorites, designs, collections, makes or likes
         """
+
+        # in case an invalid label name was given, raise an error
         if label not in gconf.UserSettings.TAB_POSSIBLE_LABELS :
             raise ValueError(
                 f'Label must be one of {",".join(gconf.UserSettings.TAB_POSSIBLE_LABELS)}. Given label: {label}')
 
+        # by finding the label of the tab button, get the parent html tag as an element
         label_element = self.browser.find_text('div', gconf.UserSettings.TAB_TITLE, label.title())
         tab_button = self.browser.find_parent(label_element)
 
+        # from the parent tag, save the element that holds the tab button metric
         self._elements[to_field_format(label)] = tab_button.find_element_by_class_name(gconf.UserSettings.TAB_METRIC)
 
     def _fetch_title(self) :
+        """
+        Fetch the user's self declared titles.
+        """
         self._elements['title'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.UserSettings.ABOUT_WIDGET_TITLE)
 
     def _fetch_skill(self) :
+        """
+        Fetch the user's self evaluated skill level.
+        """
         self._elements['skill'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.UserSettings.ABOUT_WIDGET_SKILL)
 
+    # endregion
+
+    # region Single parse methods
     def _parse_action_item(self, name) :
         """
-        Parse action item element by given name.
-        :param name: followers, following or designs
+        Parse action item (left panel) element by given name.
+            :param name: followers, following or designs
         """
+
+        # raise error if invalid action item name was given
         if name.lower() not in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
             raise ValueError(f'Name must be followers, following or designs. Given name: {name}')
 
+        # convert action item name to field
         name = to_field_format(name)
-        self.properties[name] = self._elements[name].text
+
+        # convert found count as int if numeric and add it to properties, add None if not numeric
+        found_count = self._elements[name].text
+        self[name] = int(found_count) if found_count.strip().isnumeric() else None
 
     def _parse_tab_button(self, label) :
         """
-        Parse tab button element of given label.
-        :param label: favorites, designs, collections, makes or likes
+        Parse tab button element (top panel) by given label.
+            :param label: favorites, designs, collections, makes or likes
         """
+
+        # in case an invalid label name was given, raise an error
         if label not in gconf.UserSettings.TAB_POSSIBLE_LABELS :
             raise ValueError(
                 f'Label must be one of {",".join(gconf.UserSettings.TAB_POSSIBLE_LABELS)}. Given label: {label}')
 
+        # convert label to field
         label = to_field_format(label)
-        self.properties[label] = self._elements[label].text
+
+        # convert found count as int if numeric and add it to properties, add None if not numeric
+        found_count = self._elements[label].text
+        self[label] = int(found_count) if found_count.strip().isnumeric() else None
 
     def _parse_title(self) :
-        self.properties['titles'] = self._elements["title"].text.lower().split('\n')
+        """
+        Parse the user's self declared titles.
+        """
+        self['titles'] = self._elements["title"].text.lower().split('\n')
 
     def _parse_skill(self) :
-        self.properties['skill_level'] = self._elements['skill'].text.lower()
+        """
+        Parse the user's self evaluated skill level.
+        """
+        self['skill_level'] = self._elements['skill'].text.lower()
 
-    def fetch_all(self):
+    # endregion
+
+    def fetch_all(self) :
         """
         Breaks down the users's url into elements (tags and classes) holding properties.
         """
         # open url
-        self._open_url()
+        self.open_url()
 
         # action items
-        for name in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS:
+        for name in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
             self._fetch_action_item(name)
 
         # tab buttons
@@ -242,7 +313,7 @@ class User(ScrapedData) :
 
         # skill level
         self._fetch_skill()
-    
+
     def parse_all(self, clear_cache=True) :
         """Obtain information from elements previously fetched for the user.
 
@@ -254,152 +325,455 @@ class User(ScrapedData) :
             raise RuntimeError("Elements must be fetched first before being parsed. Use .fetch_all.")
 
         # Action items
-        for item in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS:
+        for item in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
             self._parse_action_item(item)
 
         # Tab buttons
-        for label in gconf.UserSettings.TAB_POSSIBLE_LABELS:
+        for label in gconf.UserSettings.TAB_POSSIBLE_LABELS :
             self._parse_tab_button(label)
-        
+
         # titles
         self._parse_title()
-        
+
         # skill level
         self._parse_skill()
 
-        if clear_cache:
+        if clear_cache :
             self.clear_elements()
+
+    # region In development (not useable)
+    def _obtain_designs(self, design_limit=None) :
+
+        # open web page, if not open
+        self.open_url()
+
+        # Handle missing number of designs
+        if 'designs' not in self.keys() :
+            self._fetch_tab_button('designs')
+            self._parse_tab_button('designs')
+
+        n_designs = self.properties['designs'] if design_limit is None else design_limit
+        pages_to_scan = math.ceil(n_designs / gconf.THINGS_PER_PAGE)
+
+        designs = []
+        for i in range(pages_to_scan) :
+
+            # wait and obtain all available designs elements
+            page_designs = []
+            while len(page_designs) < min(gconf.THINGS_PER_PAGE, n_designs) :
+                page_designs = self.browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
+
+            # parse elements into list
+            for design in page_designs :
+                design_url = design.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
+                item_id = identifier_from_url(design_url, gconf.ThingSettings.ID_REGEX)
+                likes = design.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1].text
+                thing = Thing(thing_id=item_id)
+                thing['likes'] = int(likes)
+                designs.append((item_id, thing))
+
+        self.properties['designs_list'] = designs
+
+    def _obtain_makes(self, make_limit=None) :
+
+        # open web page, if not open
+        self.browser.get(gconf.UserSettings.MAKES_URL.format(self.properties['username']))
+
+        # Handle missing number of makes
+        if 'makes' not in self.keys() :
+            self._fetch_tab_button('makes')
+            self._parse_tab_button('makes')
+
+        n_makes = self.properties['makes'] if make_limit is None else make_limit
+        pages_to_scan = math.ceil(n_makes / gconf.THINGS_PER_PAGE)
+
+        makes = []
+        for i in range(pages_to_scan) :
+            # wait and obtain all available makes elements
+            page_makes = []
+            while len(page_makes) < min(gconf.THINGS_PER_PAGE, n_makes) :
+                page_makes = self.browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
+
+            # parse elements into list
+            for make in page_makes :
+                make_url = make.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
+                item_id = identifier_from_url(make_url, gconf.MakeSettings.ID_REGEX)
+                makes.append(item_id)
+
+        self.properties['makes_list'] = makes
+    # endregion
 
 
 class Make(ScrapedData) :
+    """
+    Hold all relevant information and methods to handle that information for a single make.
+    Attributes:
+        url         - string. Holds the url for the make's page. Constructed from make id.
+        properties  - dictionary. Described below.
+
+    Possible properties:
+        make_id         - string, make id as provided from thigiverse
+        thingiverse_id  - string, if for the source thing from which the make was created
+        username        - string, the creators username
+        uploaded        - datetime, the date and time the make was uploaded in ISO8601
+        comments        - int, number of comments for the make
+        likes           - int, number of likes for the make
+        views           - int, number of views for the make
+        category        - int, string, the category the make was uploaded to
+        print_settings  - dictionary, holds all print settings (if any) for the make
+    """
+
     def __init__(self, make_id=None, **kwargs) :
+        """
+        Construction of new Make instance.
+            :param make_id: make id as provided from thingiverse. Can be None if 'url' argument is provided.
+            :param kwargs: arguments to be passed to ScrapedData object. Recommended to pass 'url' if make_id is not given
+            and 'browser' for browser object to be used for the instance.
+        """
+
+        #  in case a make_id is not provided, look up for 'url' argument or
+        # 'properties' attribute with a make_id key.
         if make_id is None :
             if 'url' in kwargs :
                 make_id = identifier_from_url(url=kwargs['url'],
                                               regex=gconf.MakeSettings.ID_REGEX)
             elif 'properties' in kwargs and 'make_id' in kwargs['properties'] :
                 make_id = kwargs['make_id']
+
+            # if neither provided, raise an error.
             else :
                 raise ValueError(
                     "'url', 'make_id' or properties (dictionary with 'make_id' key) must be provided in order to create Make instance.")
 
-        url = url_from_identifier(base_url=gconf.MakeSettings.BASE_URL,
-                                  identifier=make_id)
+        # format a url based on found make_id (for normalized appearance)
+        url = gconf.MakeSettings.BASE_URL.format(make_id)
 
+        # construction of parent object with url
         super().__init__(url=url, **kwargs)
-        self.properties['make_id'] = make_id
+
+        # add make_id to instance's properties
+        self['make_id'] = make_id
+
+    # region Single fetch methods
+    def _fetch_source(self) :
+        """
+        Fetches source thing.
+        """
+        self._elements['source'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.MakeSettings.SOURCE)
+
+    def _fetch_creator(self) :
+        """
+        Fetches creator text line. Includes the upload date.        """
+        self._elements['page_info'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.MakeSettings.PAGE_INFO)
+
+    def _fetch_metric(self, title) :
+        """
+        Fetch a metric for the make by given metric title.
+            :param title: the metric to be fetch. can be : like, comment or share
+        """
+
+        # search for metric element by given title
+        search_path = gconf.MakeSettings.METRIC_ITEM_PATH.format(make_id=self.properties['make_id'],
+                                                                 icon_title=title.title())
+
+        # insert found metric to instance elements
+        self._elements[title] = self.browser.driver.find_element_by_xpath(search_path)
+
+    def _fetch_views_and_category(self) :
+        """
+        Fetch the elements of views and category.
+        """
+        make_info_element = self.browser.driver.find_element_by_xpath(gconf.MakeSettings.MAKE_INFO)
+        make_info_element_parent = self.browser.find_parent(make_info_element)
+
+        self._elements['views'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.VIEWS)
+        self._elements['category'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.CATEGORY)
+
+    def _fetch_print_settings(self) :
+        """
+        Fetch the print settings.
+        """
+        self._elements['print_settings'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.MakeSettings.INFO_CONTENT)
+
+    # endregion
+
+    def fetch_all(self) :
+        """
+        Open the make's url (if not already opened) and fetch elements.
+        """
+        self.open_url()
+
+        self._fetch_source()
+        self._fetch_creator()
+        self._fetch_metric('like')
+        self._fetch_metric('comments')
+        self._fetch_metric('share')
+        self._fetch_views_and_category()
+        self._fetch_print_settings()
+
+    # region Single parse methods
+    def _parse_source(self) :
+        """
+        Parse source thing id as provided by thingiverse.
+        :return:
+        """
+        self['thingiverse_id'] = identifier_from_url(self._elements['source'].get_attribute('href'),
+                                                     gconf.ThingSettings.ID_REGEX)
+
+    def _parse_creator_username(self) :
+        self['username'] = self._elements['page_info'].find_element_by_tag_name(
+            'span').find_element_by_tag_name('a').text
+
+    def _parse_upload_time(self) :
+        """
+        Parse upload time as ISO8601 datetime into instance's properties.
+        """
+        upload_time = self._elements['page_info'].find_element_by_tag_name('span').find_element_by_tag_name(
+            'time').get_attribute('datetime')
+        self.properties['uploaded'] = datetime.datetime.strptime(upload_time, "%Y-%m-%d %H:%M:%S %Z").isoformat()
+
+    def _parse_metric(self, name) :
+        """
+        Parse a metric for the make by given metric title (Converts metric into an integer).
+            :param name: the metric to be fetch. can be : like, comment or share
+        """
+        metric = self._elements[name].text
+        # convert metric to int if numeric, None if failed
+        self[name] = int(metric) if metric.strip().isnumeric() else None
+
+    def _parse_views(self) :
+        """
+        Parse views as int.
+        """
+        views = self._elements['views'].text.replace(" Views", "")
+        # convert views to int if numeric, None if failed
+        self['views'] = int(views) if views.strip().isnumeric() else None
+
+    def _parse_category(self) :
+        """
+        Parse category.
+        """
+        self.properties['category'] = self._elements['category'].text.replace("Found in ", "").lower()
+
+    def _parse_print_settings(self) :
+        """
+        Parse print settings into a dictionary that holds all information.
+        """
+        # get whole text of print settings element
+        content_line = self._elements["print_settings"].text
+
+        # Define a lambda function to that returns group 1 based on regex pattern or None of pattern not found
+        regex_result = (
+            lambda regex : None if (re.search(regex, content_line)) is None else re.search(regex, content_line).group(
+                1))
+
+        print_settings = dict()
+
+        # For each of the settings, find its value using regex
+        # done manually due to difference in field names
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[0])] = regex_result(
+            "Printer Brand:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[1])] = regex_result(
+            "Printer:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[2])] = regex_result(
+            "Rafts:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[3])] = regex_result(
+            "Supports:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[4])] = regex_result(
+            "Resolution:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[5])] = regex_result(
+            "Infill:\\n(.*?)\\n")
+        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[6])] = regex_result(
+            "Filament: (.*)")
+
+        # add all settings to properties
+        self['print_settings'] = print_settings
+
+    # endregion
+
+    def parse_all(self, clear_cache=True) :
+        """
+        Parse all properties for make instance.
+            :param clear_cache: if true, elements attribute will be cleared upon parsing.
+        """
+        self._parse_source()
+        self._parse_creator_username()
+        self._parse_upload_time()
+        self._parse_metric('like')
+        self._parse_metric('comments')
+        self._parse_metric('share')
+        self._parse_views()
+        self._parse_category()
+        self._parse_print_settings()
+
+        if clear_cache :
+            self.clear_elements()
 
 
-# TODO: Update thing to user ScrapedData as parent
-class Thing :
+class Thing(ScrapedData) :
     """
-    Thing class is design to hold single thing page information.
-    Once an instance is created by providing thing url, fetch_all(browser) function is need to be used in order to obtain
-    all possible elements from the page.
-    After fetching, parse_all() will generate a dictionary holding all information about the thing (model).
-    Information can be accessed by using squared brackets on the thing instance.
+    Holds all relevant information and methods to handle that information for a signle Thing (model).
+    Attributes:
+        url         - string. Holds the url for the make's page. Constructed from make id.
+        properties  - dictionary. Described below.
+
+    Possible properties:
+        thing_id            - string, thing id as provided from thigiverse
+        username            - string, creator's username
+        model_name          - string, the title given for the model
+        uploaded            - datetime, the date and time the make was uploaded in ISO8601
+        files               - int, number of files for the thing
+        comments            - int, number of comments the thing has
+        makes               - int, number of makes the thing has
+        likes               - int, number of likes the thing has
+        tags                - list, string, all the given tags for the thing
+        print_settings      - dictionary, holds all provided print settings (if any)
+        license             - string, usage licenses provided by the user
+        remix               - string, if the thing is a remix, includes the source thing id as provided from thingiverse
+        category            - string, the category the thing was uploaded to
     """
 
-    def __init__(self, **kwargs) :
+    def __init__(self, thing_id=None, **kwargs) :
         """
-        Creating a new thing instance. Must provide either thing id or url as arguments.
+        Construction of new Thing instance.
+            :param thing_id: thing id as provided from thingiverse. Can be None if 'url' argument is provided.
+            :param kwargs: arguments to be passed to ScrapedData object. Recommended to pass 'url' if thing_id is not given
+            and 'browser' for browser object to be used for the instance.
         """
-        # Validating construction arguments and adding them as instance arguments
-        if kwargs.get('url') is not None :
-            self.url = kwargs['url']
-            self.thing_id = kwargs['url'].split(sep=":")[-1]
-        elif kwargs.get('id') is not None :
-            self.thing_id = kwargs['id']
-            self.url = gconf.MAIN_URL + "thing:" + kwargs['id']
-        # in case no neither id or url were given, raise a value error.
+        #  in case a thing_id is not provided, look up for 'url' argument or
+        # 'properties' attribute with a thing_id key.
+        if thing_id is None :
+            if 'url' in kwargs :
+                thing_id = identifier_from_url(url=kwargs['url'],
+                                               regex=gconf.ThingSettings.ID_REGEX)
+            elif 'properties' in kwargs and 'thing_id' in kwargs['properties'] :
+                thing_id = kwargs['thing_id']
+            else :
+                raise ValueError(
+                    "'url', 'thing_id' or properties (dictionary with 'thing_id' key) must be provided in order to create Thing instance.")
+
+        # format a url based on found thing_id (for normalized appearance)
+        url = gconf.ThingSettings.BASE_URL.format(thing_id)
+
+        # construction of parent object with url
+        super().__init__(url=url, **kwargs)
+
+        # add thing_id to instance's properties
+        self['thing_id'] = thing_id
+
+    # region Single fetch methods
+    def _fetch_category(self) :
+        category_box = get_parent(self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.CATEGORY_SECTION))
+        self._elements['category'] = category_box.find_element(By.CLASS_NAME, gconf.ThingSettings.CATEGORY_NAME)
+
+    def _fetch_remix(self) :
+        try :
+            remix_box = self.browser.find_parent(by=By.CLASS_NAME, name=gconf.ThingSettings.REMIX_SECTION)
+            self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, gconf.ThingSettings.REMIX_CARD)
+        except NoSuchElementException :
+            self._elements['remix'] = None
+
+    def _fetch_license(self) :
+        self._elements['license'] = self.browser.driver.find_element_by_xpath(gconf.ThingSettings.LICENSE_PATH)
+
+    def _fetch_print_settings(self) :
+        # obtain print settings element
+        # this is an optional information the creator can provide, so some models may not have this information.
+        try :
+            settings_header = self.browser.find_text(tag='div', class_name=gconf.ThingSettings.BLOCK_TITLE,
+                                                     text='Print Settings')
+            print_settings = self.browser.find_parent(settings_header)
+            self._elements['print_settings'] = print_settings.find_elements_by_class_name(
+                gconf.ThingSettings.PRINT_SETTING)
+        except NoSuchElementException :
+            self._elements['print_settings'] = None
+
+    def _fetch_tags(self) :
+        # obtain all tag elements into a list
+        all_tags = self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.TAG_LIST)
+        try :
+            self._elements['tags'] = [tag for tag in
+                                      all_tags.find_elements_by_class_name(gconf.ThingSettings.TAG_SINGLE)]
+        except NoSuchElementException :
+            self._elements['tags'] = None
+
+    def _fetch_tab_buttons(self) :
+        # obtain tab buttons holding metric information: files, comments, makes and remixes
+        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.TAB_BUTTON, find_all=True)
+        self._elements['tab_buttons'] = {
+            metric.find_element_by_class_name(gconf.ThingSettings.TAB_TITLE) : metric.find_element_by_class_name(
+                gconf.ThingSettings.METRIC)
+            for metric in all_metrics}
+
+    def _fetch_created_by(self) :
+        # obtain element holding both the creator name and the uploaded date
+        self._elements['created_by'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.CREATED_BY)
+
+    def _fetch_model_name(self) :
+        # obtain element holding the model (thing) name
+        self._elements['model_name'] = self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.MODEL_NAME)
+
+    # endregion
+
+    # region Single parse methods
+    def _parse_category(self) :
+        self.properties['category'] = self._elements['category'].text
+
+    def _parse_remix(self) :
+        if self._elements['remix'] is not None :
+            self.properties['remix'] = self._elements['remix'].get_attribute('href').split(sep=":")[-1]
         else :
-            raise ValueError(
-                "Construction arguments for thing object must include either an id, url or properties (as dictionary). Given arguments:",
-                kwargs.keys())
+            self.properties['remix'] = None
 
-        # Declaring empty dictionaries to hold page elements and properties (parsed elements)
-        self._elements = dict()
-        prop_value = kwargs.get('properties')
-        self.properties = prop_value if prop_value is not None else dict()
+    def _parse_license(self) :
+        self.properties['license'] = self._elements['license'].text
 
-        # Set browser as thing's property, if given, None otherwise.
-        if kwargs.get('browser') :
-            self.browser = kwargs['browser']
-        else :
-            self.browser = None
+    def _parse_print_settings(self) :
+        # add empty print settings to properties (as some models may not have any print settings information
+        print_settings = {to_field_format(key) : None for key in gconf.ThingSettings.POSSIBLE_PRINT_SETTINGS}
 
-    def __getitem__(self, item) :
-        """
-        Implementation of special function to allow retrieving a thing parameter by using squared brackets.
-      :param item: key for the requested thing property.
-      :return: thing property.
-        """
-        return self.properties.get(item)
+        if self._elements['print_settings'] is not None :
+            for setting in self._elements['print_settings'] :
+                # using regex to obtain setting name and value into two groups
+                regex_result = re.search(gconf.ThingSettings.FIND_SETTING_REGEX, setting.get_attribute('innerHTML'))
 
-    def __setitem__(self, key, value) :
-        """
-        Implementation of special function to allow setting a thing parameter by using squared brackets.
-      :param key: key for requested thing property
-      :param value: the value to set for the property
-        """
-        self.properties[key] = value
+                if regex_result is not None :
+                    provided_property = to_field_format(regex_result.group(1))
+                    property_value = regex_result.group(2).lower()
 
-    def __add__(self, other) :
-        """
-        Implementation of special function to allow appending parameters to a thing by using '+' sign.
-        Appended object must be of type dict.
-      :param other: dictionary with keys as properties.
-      :return: self
-        """
+                    if provided_property in print_settings.keys() :
+                        print_settings[provided_property] = property_value
 
-        # verify given parameter to be of type dict
-        if isinstance(other, dict) :
-            self.properties.update(other)
-        else :
-            raise TypeError(f"Can only add dictionary, not {type(other)}.")
-        return self
+        self['print_settings'] = print_settings
 
-    def __str__(self) :
-        """
-        Implementation of special function to allow str casting of thing instance.
-      :return: thing's url
-        """
-        return self.url
+    def _parse_tags(self) :
+        # Obtain text from each tag element add add them all as a list to properties
+        self.properties['tags'] = [tag.text for tag in self._elements['tags']]
 
-    def __repr__(self) :
-        """
-        Implementation of special function to allow representation of a thing instance.
-      :return: thing's url
-        """
-        return self.url
+    def _parse_metrics(self) :
+        # set tab buttons to be ignore (hold not useful information)
+        ignore_buttons = ('Thing Details', 'Apps')
+        # for each tab button element, add it's name (converted using to_field_format function) and value to properties
+        for key, value in self._elements['tab_buttons'].items() :
+            if key.text not in ignore_buttons :
+                # using tab button names as field names. lowering case and replacing spaces with underscore
+                # cast metric as int
+                self.properties[to_field_format(key.text)] = int(value.text)
 
-    def print_info(self) :
-        """
-        Prints full information about the thing instance.
-        """
-        output = [f"Thing number {self.thing_id}",
-                  self.url]
-        for key in self.properties :
-            output.append(f"\t{key} = {self.properties[key]}")
-        print("\n".join(output))
+    def _parse_upload_date(self) :
+        # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
+        date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
+        # convert string date into actual date using datetime package. Date saved in epoch format.
+        self.properties['uploaded'] = datetime.datetime.strptime(date_text, "%B %d, %Y").isoformat()
 
-    def keys(self) :
-        """
-        Returns all property names held for the thing instance.
-        """
-        return tuple(self.properties.keys())
+    def _parse_creator_username(self) :
+        self.properties['username'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
+            'text')
 
-    def _open_url(self) :
-        """
-        In case the current url in the opened browser is not refering for the thing url, open it.
-        """
+    def _parse_model_name(self) :
+        self.properties['model_name'] = self._elements['model_name'].text
 
-        # If the thing instance has not browser defined, raise an error
-        if not self.browser :
-            raise NameError("Thing object has not browser defined. See 'thing.browser'.")
-        # if a browser is defined, check the opened url and match it for the thing's url
-        elif self.browser.opened_url() != self.url :
-            self.browser.get(self.url)
+    # endregion
 
     def fetch_all(self, browser=None) :
         """
@@ -412,7 +786,7 @@ class Thing :
             self.browser = browser
 
         # open url
-        self._open_url()
+        self.open_url()
 
         self._fetch_model_name()
 
@@ -430,54 +804,6 @@ class Thing :
 
         self._fetch_category()
 
-    def _fetch_category(self) :
-        category_box = get_parent(self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.CATEGORY_SECTION))
-        self._elements['category'] = category_box.find_element(By.CLASS_NAME, elm.ThingSettings.CATEGORY_NAME)
-
-    def _fetch_remix(self) :
-        try :
-            remix_box = self.browser.find_parent(by=By.CLASS_NAME, name=elm.ThingSettings.REMIX_SECTION)
-            self._elements['remix'] = remix_box.find_element(By.CLASS_NAME, elm.ThingSettings.REMIX_CARD)
-        except NoSuchElementException :
-            self._elements['remix'] = None
-
-    def _fetch_license(self) :
-        self._elements['license'] = self.browser.driver.find_element_by_xpath(elm.ThingSettings.LICENSE_PATH)
-
-    def _fetch_print_settings(self) :
-        # obtain print settings element
-        # this is an optional information the creator can provide, so some models may not have this information.
-        try :
-            print_settings = self.browser.find(By.CLASS_NAME, elm.ThingSettings.PRINT_SETTINGS)
-            self._elements['print_settings'] = print_settings.find_elements_by_class_name(
-                elm.ThingSettings.PRINT_SETTING)
-        except NoSuchElementException :
-            self._elements['print_settings'] = None
-
-    def _fetch_tags(self) :
-        # obtain all tag elements into a list
-        all_tags = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.TAG_LIST)
-        try :
-            self._elements['tags'] = [tag for tag in all_tags.find_elements_by_class_name(elm.ThingSettings.TAG_SINGLE)]
-        except NoSuchElementException :
-            self._elements['tags'] = None
-
-    def _fetch_tab_buttons(self) :
-        # obtain tab buttons holding metric information: files, comments, makes and remixes
-        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.TAB_BUTTON, find_all=True)
-        self._elements['tab_buttons'] = {
-            metric.find_element_by_class_name(elm.ThingSettings.TAB_TITLE) : metric.find_element_by_class_name(
-                elm.ThingSettings.METRIC)
-            for metric in all_metrics}
-
-    def _fetch_created_by(self) :
-        # obtain element holding both the creator name and the uploaded date
-        self._elements['created_by'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.CREATED_BY)
-
-    def _fetch_model_name(self) :
-        # obtain element holding the model (thing) name
-        self._elements['model_name'] = self.browser.wait_and_find(By.CLASS_NAME, elm.ThingSettings.MODEL_NAME)
-
     def parse_all(self, clear_cache=True) :
         """Obtain information from elements previously fetched for the thing.
 
@@ -493,9 +819,8 @@ class Thing :
 
         # get username found inside a tag text
         self._parse_creator_username()
-        # get username profile url provided as a tag href
-        self._parse_creator_url()
 
+        # upload time
         self._parse_upload_date()
 
         # Metric information
@@ -520,85 +845,85 @@ class Thing :
         if clear_cache :
             self.clear_elements()
 
-    def clear_elements(self) :
-        self._elements.clear()
-
-    def _parse_category(self) :
-        self.properties['category'] = self._elements['category'].text
-
-    def _parse_remix(self) :
-        if self._elements['remix'] is not None :
-            self.properties['remix'] = self._elements['remix'].get_attribute('href').split(sep=":")[-1]
-        else :
-            self.properties['remix'] = None
-
-    def _parse_license(self) :
-        self.properties['license'] = self._elements['license'].text
-
-    def _parse_print_settings(self) :
-        # listing all possible fields for print settings provided by thingiverse
-        possible_print_settings = ["Printer Brand",
-                                   "Printer Model",
-                                   "Rafts",
-                                   "Supports",
-                                   "Resolution",
-                                   "Infill",
-                                   "Filament Brand",
-                                   "Filament Color",
-                                   "Filament Material"]
-        # add empty print settings to properties (as some models may not have any print settings information
-        self.properties.update({to_field_format(key) : None for key in possible_print_settings})
-        if self._elements['print_settings'] is not None :
-            # define regex search patter to obtain setting and its value
-            pattern = r"(.*):<div>(.*)</div>"
-            for setting in self._elements['print_settings'] :
-                # using regex to obtain setting name and value into two groups
-                regex_result = re.search(pattern, setting.get_attribute('innerHTML'))
-
-                if regex_result is not None :
-                    # updating print settings (group 1 or regex results) with its value (group 2 of regex results) into the properties
-                    self.properties.update({to_field_format(regex_result.group(1)) : regex_result.group(2)})
-
-    def _parse_tags(self) :
-        # Obtain text from each tag element add add them all as a list to properties
-        self.properties['tags'] = [tag.text for tag in self._elements['tags']]
-
-    def _parse_metrics(self) :
-        # set tab buttons to be ignore (hold not useful information)
-        ignore_buttons = ('Thing Details', 'Apps')
-        # for each tab button element, add it's name (converted using to_field_format function) and value to properties
-        for key, value in self._elements['tab_buttons'].items() :
-            if key.text not in ignore_buttons :
-                # using tab button names as field names. lowering case and replacing spaces with underscore
-                # cast matric ast int
-                self.properties[to_field_format(key.text)] = int(value.text)
-
-    def _parse_upload_date(self) :
-        # use created by html to obtain uploaded date text (uploaded date appears after a end tag)
-        date_text = self._elements['created_by'].get_attribute('innerHTML').split(sep='</a> ')[1]
-        # convert string date into actual date using datetime package. Date saved in epoch format.
-        self.properties['upload_date'] = datetime.datetime.strptime(date_text, "%B %d, %Y").timestamp()
-
-    def _parse_creator_url(self) :
-        self.properties['creator_url'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
-            'href')
-
-    def _parse_creator_username(self) :
-        self.properties['creator_username'] = self._elements['created_by'].find_element_by_tag_name('a').get_attribute(
-            'text')
-
-    def _parse_model_name(self) :
-        self.properties['model_name'] = self._elements['model_name'].text
-
-    def get_json(self) :
+    def get_makes(self, max_makes=gconf.MAX_MAKES_TO_SCAN) :
         """
-        Returns a single dictionary holding all information about the thing.
+        Get makes ids related with the thing.
+            :param max_makes: the maximum number of makes to obtain.
+            :return: a list holding make ids related to the thing instance.
         """
-        result = {'thing_id' : self.thing_id, 'url' : self.url}
-        result.update(self.properties)
-        return result
+        # open web page,
+        self.browser.get(gconf.ThingSettings.MAKES_URL.format(self.properties['thing_id']))
+
+        # Handle missing number of makes
+        if 'makes' not in self.keys() :
+            self._fetch_tab_buttons()
+            self._parse_metrics()
+
+        # Determine the maximum number of makes to scan
+        # (lowest between configuration max and real number of makes for thing)
+        n_makes = min(self.properties['makes'], max_makes)
+
+        thing_cards = []
+        # while not all n_makes are found
+        while len(thing_cards) < n_makes :
+            # scroll down to the bottom of the page
+            self.browser.driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+            # get all found elements
+            thing_cards = self.browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
+
+        # Construct make id list from thing card list
+        makes_list = []
+        for card in thing_cards[:n_makes] :
+            make_url = card.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute('href')
+            make_id = identifier_from_url(make_url, gconf.MakeSettings.ID_REGEX)
+            makes_list.append(make_id)
+
+        return makes_list
+
+    def get_remixes(self, max_remixes=gconf.MAX_REMIXES_TO_SCAN) :
+        """
+        Get remixes related to the thing instance.
+            :param max_remixes: maximum number of remixes to obtain.
+            :return: a list of tuples with (thing_id, likes) for each remix.
+        """
+        # open web page,
+        self.browser.get(gconf.ThingSettings.REMIXES_URL.format(self.properties['thing_id']))
+
+        # Handle missing number of remixes
+        if 'remixes' not in self.keys() :
+            self._fetch_tab_buttons()
+            self._parse_metrics()
+
+        # Determine the maximum number of remixes to scan
+        # (lowest between configuration max and real number)
+        n_remixes = min(self.properties['remixes'], max_remixes)
+
+        thing_cards = []
+        # while not all n_remixes are found
+        while len(thing_cards) < n_remixes :
+            # scroll down to the bottom of the page
+            self.browser.driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+            # get all found elements
+            thing_cards = self.browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
+
+        # Construct thing list that holds thing_id and number of likes per remix
+        thing_list = []
+        for card in thing_cards[:n_remixes] :
+            thing_url = card.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute('href')
+            thing_likes = card.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1].text
+
+            thing_id = identifier_from_url(thing_url, gconf.ThingSettings.ID_REGEX)
+            thing_likes_int = int(thing_likes) if thing_likes.strip().isnumeric() else 0
+
+            thing_list.append((thing_id, thing_likes_int))
+
+        return thing_list
 
 
+# endregion
+# endregion
+
+# Browser managing class
 class Browser :
     """
     Browser class manages the browser to be opened and it's driver.
@@ -660,7 +985,7 @@ class Browser :
         """
         return self.driver.current_url
 
-    def wait(self, by, name, timeout=pconf.get_wait_timeout, regex=False) :
+    def wait(self, by, name, timeout=pconf.get_wait_timeout, regex=False, find_all=False) :
         """
         Wait for specific element to be present in browser.
             Parameters:
@@ -668,6 +993,7 @@ class Browser :
                 name (str): the 'by' value to search for
                 timeout (int): time limit in seconds to wait for find values 'by' and 'name' to appear on page. Defualt: get_wait_timout on personal_config.py
                 regex (bool): if true, regex search patterns are enabled for 'name'.
+                find_all (bool): if true, wait for all elements of search criteria to be found.
         """
         # change the search name to re.compile of regex is enabled
         if regex :
@@ -675,7 +1001,7 @@ class Browser :
 
         # wait for given element to be available. raise error if timeout has been reached.
         WebDriverWait(self.driver, timeout).until(
-            ec.presence_of_element_located((by, name))
+            ec.presence_of_all_elements_located((by, name)) if find_all else ec.presence_of_element_located((by, name))
         )
 
     def find(self, by, name, find_all=False) :
@@ -709,7 +1035,7 @@ class Browser :
                Returns:
                 (webdriver.remote.webelement.WebElement): the found element(s)
         """
-        self.wait(by, name, timeout, regex)
+        self.wait(by, name, timeout, regex, find_all)
         return self.find(by, name, find_all)
 
     def find_parent(self, element=None, *args, **kwargs) :
@@ -726,23 +1052,25 @@ class Browser :
 
 def main() :
     with Browser(pconf.browser, pconf.driver_path) as browser :
+        make = Make('908742', browser=browser)
+        make.open_url()
+        make.fetch_all()
+        make.parse_all()
+        make.print_info()
+
         user = User('brainchecker', browser=browser)
         user.fetch_all()
         user.parse_all()
         user.print_info()
 
-        thing = Thing(id='4734271')
+        thing = Thing(thing_id='1179160', browser=browser)
         thing.fetch_all(browser)
         thing.parse_all()
-
-        # testing several properties
-        assert thing.properties['creator_username'] == 'brainchecker'
-        assert thing.properties['makes'] == 17
-        assert thing.properties['tags'] == ['box', 'container', 'crate', 'stackable']
-        assert thing.properties['filament_material'] == 'PLA'
-
-        # printing thing information
         thing.print_info()
+        print("Makes:", thing.get_makes())
+        print("Remixes:", thing.get_remixes())
+
+        pass
 
 
 if __name__ == '__main__' :
