@@ -1,5 +1,4 @@
 import general_config as gconf
-import personal_config as pconf
 from ThingScraper import Browser, Thing, User, Make
 from selenium.webdriver.common.by import By
 import cli
@@ -42,7 +41,8 @@ def save_json(file_path, things_dict):
     state = False
     try:
         with open(file_path, 'w') as file:
-            data = [(id, things_dict[id].properties) for id in things_dict]
+            data = {data_type: {k: things_dict[data_type][k].properties for k in things_dict[data_type]}
+                    for data_type in things_dict}
             json.dump(data, file)
     except Exception as E:
         print(f"Could not save the file:\n{type(E)}: {E}")
@@ -58,7 +58,7 @@ def load_json(file_path):
     :param file_path: where to save the file (includes name)
     :return: A dict where the key is a thing id, and the value is a Thing object
     """
-    res = None
+    res = data_format.copy()
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
@@ -67,7 +67,9 @@ def load_json(file_path):
     except Exception as E:
         print(f"Could not open the file:\n{E}")
     else:
-        res = {key: Thing(id=key, properties=val) for key, val in data}
+        res["Things"] = {k: Thing(thing_id=k, properties=data["Things"][k]) for k in data["Things"]}
+        res["Users"] = {k: User(username=k, properties=data["Users"][k]) for k in data["Users"]}
+        res["Makes"] = {k: Make(make_id=k, properties=data["Makes"][k]) for k in data["Makes"]}
     finally:
         return res
 
