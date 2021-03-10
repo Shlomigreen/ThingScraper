@@ -2,7 +2,8 @@
 MAIN_URL = "https://www.thingiverse.com/"  # Url of the main domain
 THINGS_PER_PAGE = 20  # Number of things found in each explore page
 PAGES_TO_SCAN = 30  # Default value for number of pages to scan
-PLACE_HOLDER = '%%'
+MAX_MAKES_TO_SCAN = 20  # Default value for maximum number of makes to scan from per thing
+MAX_REMIXES_TO_SCAN = 20  # Default value for maximum number of remixes to scan from per thing
 
 
 class ExploreList :
@@ -13,7 +14,8 @@ class ExploreList :
 
 class UserSettings :
     # Urls
-    BASE_URL = f"https://www.thingiverse.com/{PLACE_HOLDER}/designs"
+    BASE_URL = "https://www.thingiverse.com/{}/designs"
+    MAKES_URL = "https://www.thingiverse.com/{}/makes"
 
     # Regex
     USERNAME_REGEX = r"thingiverse.com/(.*)/"  # Regex string to search for username out of url. Group 1 is taken from this.
@@ -34,7 +36,7 @@ class UserSettings :
 
 
 class MakeSettings :
-    BASE_URL = f"https://www.thingiverse.com/make:{PLACE_HOLDER}"
+    BASE_URL = "https://www.thingiverse.com/make:{}"
     ID_REGEX = r"make:(\d*)"
 
     POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
@@ -43,8 +45,7 @@ class MakeSettings :
                                 "Supports",
                                 "Resolution",
                                 "Infill",
-                                "Filament"]
-
+                                "Filament Brand"]
 
     # Classes
     SOURCE = "card-img-holder"
@@ -65,7 +66,9 @@ class MakeSettings :
 
 
 class ThingSettings :
-    BASE_URL = f"https://www.thingiverse.com/thing:{PLACE_HOLDER}"
+    BASE_URL = r"https://www.thingiverse.com/thing:{}"
+    MAKES_URL = BASE_URL+r'/makes'
+    REMIXES_URL = BASE_URL + r'/remixes'
     ID_REGEX = r"thing:(\d*)"
 
     POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
@@ -77,8 +80,10 @@ class ThingSettings :
                                 "Filament Brand",
                                 "Filament Color",
                                 "Filament Material"]
+    FIND_SETTING_REGEX = r"(.*):<div>(.*)</div>"
 
     # Classes
+    CARD_TITLE = "ThingCardHeader__cardNameWrapper--3xgAZ"
     MODEL_NAME = "ThingPage__modelName--3CMsV"
     CREATED_BY = "ThingPage__createdBy--1fVAy"
     TAB_BUTTON = "MetricButton__tabButton--2rvo1"
@@ -92,6 +97,7 @@ class ThingSettings :
     CATEGORY_NAME = "ThingsMoreSection__categoryName--3RWut"
     PRINT_SETTINGS = "ThingPage__preHistory--312bi"
     PRINT_SETTING = "ThingPage__description--14TtH"
+    BLOCK_TITLE = "ThingPage__blockTitle--3ZdLu"
 
     # HTML paths
     LICENSE_PATH = r"//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]"
