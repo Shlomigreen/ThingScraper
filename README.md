@@ -50,8 +50,6 @@ Includes the usage of the following:
 
 * **a `Thing, User and Make` objects**: recieves and holds infromation about a single thing (model) ,user or a make. Uses a Browser object for some of its functionality.
 
-
-
 ### 3.2. Basic usage (signle thing scraping)
 
 ```python
@@ -74,39 +72,61 @@ thing.fetch_all()
 # Convert found elements into useful information
 thing.parse_all()
 
-
 # Print out obtained information
 thing.print_info()
 ```
 
 ```
 https://www.thingiverse.com/thing:4734271
-	thing_id = 4734271
-	model_name = stackable crate
-	username = brainchecker
-	uploaded = 2021-01-23T00:00:00
-	thing_files = 3
-	comments = 47
-	makes = 17
-	remixes = 11
-	tags = ['box', 'container', 'crate', 'stackable']
-	print_settings = {'printer_brand': None, 'printer_model': None, 'rafts': 'no', 'supports': 'yes', 'resolution': '0.2', 'infill': '5', 'filament_brand': 'esun, bq', 'filament_color': 'orange, grass green', 'filament_material': 'pla'}
-	license = Creative Commons - Attribution
-	remix = None
-	category = Containers
+    thing_id = 4734271
+    model_name = stackable crate
+    username = brainchecker
+    uploaded = 2021-01-23T00:00:00
+    thing_files = 3
+    comments = 47
+    makes = 17
+    remixes = 11
+    tags = ['box', 'container', 'crate', 'stackable']
+    print_settings = {'printer_brand': None, 'printer_model': None, 'rafts': 'no', 'supports': 'yes', 'resolution': '0.2', 'infill': '5', 'filament_brand': 'esun, bq', 'filament_color': 'orange, grass green', 'filament_material': 'pla'}
+    license = Creative Commons - Attribution
+    remix = None
+    category = Containers
+```
+
+### 3.3. Obtaining thing's makes and remixes
+
+```python
+# Get a set of make ids for a thing instance
+makes_set = thing.get_makes(max_makes=MAX_MAKES_TO_SCAN)
+
+# Get a dictionary of remixes (thing) ids for a thing instance
+# where the keys are the ids and values are thing object with 'likes' properties
+remix_dict = thing.get_remixes(max_remixes=MAX_REMIXES_TO_SCAN)
 ```
 
 ## 4. Configurations
 
-# 
+#### 4.1. Personal configurations (personal_config.py)
 
 - <u>browser</u>: str representation for browser to use (One of: chrome, firefox, iexplorer, safari). Default: chrome.
 
 - <u>driver_path</u>: either a relative or absolute path for the webdriver file location for the provided vrowser. Default: chromedriver.
 
-- <u>get_wait_timeout</u>: the time to wait in secods for web element to be available.  Default: 10.
+- <u>def_save_name</u>: the name of the exported file from CLI. Default: save.
 
-## Command Line Interface
+- <u>wait_timeout_:</u> the time to wait in secods for web element to be available. 
+
+- <u>pages_to_scan</u>: the number of pages to scan from the explore url.
+
+- <u>max_makes_to_scan</u>: the maximum number of makes to scan per thing.
+
+- <u>max_remixes_to_scan</u>: the maximum number of remixes to scan per thing.
+
+- <u>implicitly_wait</u>: the number of seconds to wait in some javascript heavy pages (makes and remixes i.e.).
+
+
+
+## 5. Command Line Interface
 
 When running the program through a CLI, 1st positional argument is the type of object we want to scrap, 
 should be: {Thing, User, Make, Remix}
@@ -237,7 +257,21 @@ Don't save to database, print results to command line only
 
 Clear SQL database and save anew. 
 
-## License & Contributing
+## 6. Database
+
+Once a JSON file was created after scraping some things, an sqlite database can be created using the `build_database` function from `Database\build_db.py` file.__
+
+```python
+from Database.build_db import build_database
+
+build_database(json_path, db_path=['thingiverse.db'])
+# json_path: the path to the JSON file created from CLI
+# db_path: the path to save the created database. Default: 'thingiverse.db'
+```
+
+
+
+## 7. License & Contributing
 
 Created by Konstantin Krivokon and Shlomi Abuchatzera Green.
 
