@@ -5,15 +5,12 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 import general_config as gconf
-import personal_config
 import personal_config as pconf
 import os
 import re
 import datetime
 import math
 import time
-import json  # TODO: remove
-import pickle  # TODO: remove
 
 
 # region General manipulation functions
@@ -890,7 +887,7 @@ class Thing(ScrapedData) :
         if clear_cache :
             self.clear_elements()
 
-    def get_makes(self, max_makes=personal_config.MAX_MAKES_TO_SCAN) :
+    def get_makes(self, max_makes=pconf.MAX_MAKES_TO_SCAN) :
         """
         Get makes ids related with the thing.
             :param max_makes: the maximum number of makes to obtain.
@@ -900,7 +897,7 @@ class Thing(ScrapedData) :
         self.browser.get(gconf.ThingSettings.MAKES_URL.format(self.properties['thing_id']))
 
         # sleep for defined seconds to get javascript loaded
-        time.sleep(personal_config.IMPLICITLY_WAIT)
+        time.sleep(pconf.IMPLICITLY_WAIT)
 
         # Handle missing number of makes
         if 'makes' not in self.keys() :
@@ -928,7 +925,7 @@ class Thing(ScrapedData) :
 
         return set(makes_list)
 
-    def get_remixes(self, max_remixes=personal_config.MAX_REMIXES_TO_SCAN) :
+    def get_remixes(self, max_remixes=pconf.MAX_REMIXES_TO_SCAN) :
         """
         Get remixes related to the thing instance.
             :param max_remixes: maximum number of remixes to obtain.
@@ -938,7 +935,7 @@ class Thing(ScrapedData) :
         self.browser.get(gconf.ThingSettings.REMIXES_URL.format(self.properties['thing_id']))
 
         # sleep for defined seconds to get javascript loaded
-        time.sleep(personal_config.IMPLICITLY_WAIT)
+        time.sleep(pconf.IMPLICITLY_WAIT)
 
         # Handle missing number of remixes
         if 'remixes' not in self.keys() :
@@ -1102,205 +1099,3 @@ class Browser :
             self.wait(By.CLASS_NAME, class_name)
 
         return self.driver.find_element_by_xpath(f"//{tag}[contains(@class,'{class_name}') and text()='{text}']")
-
-
-# region Temp Function (main copy)
-def parse_explore_url(sort_='popular', time_restriction=None, page=1) :
-    """
-    Generates a url that leads to an explore page based on given parameters
-    :param sort_: sort type. can be: popular, newest or makes
-    :param time_restriction: restriction when sorted by popular: now-7d, now-30d, now-365d, None (All time)
-    :param page: page number
-    :return: url in str format
-    """
-    base_url = gconf.MAIN_URL + r'search?type=things&q=&sort='
-    # sort_: popular, newest or makes
-    base_url += sort_
-    if time_restriction :
-        # time_restriction: now-7d, now-30d, now-365d, None (All time)
-        base_url += r"&posted_after=" + time_restriction
-    base_url += r"&page=" + str(page)
-
-    return base_url
-
-
-def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN) :
-    """
-    Scans the top pages of the last month, and returns a dictionary of the projects
-    :param browser: The browser we're using
-    :param pages_to_scan: The amount of pages we want to scan on the site
-    :return: A dictionary, where the key is the "thing id", and the value is the number of likes
-    """
-    data = []
-    for i in range(1, pages_to_scan + 1) :
-        url = parse_explore_url('popular', 'now-30d', i)
-        browser.get(url)
-        projects = []
-        while len(projects) < gconf.THINGS_PER_PAGE :
-            projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
-        print(f"Scanned {len(projects)} things on page {i} out of {pages_to_scan}")
-        for item in projects :
-            item_url = item.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
-            item_id = identifier_from_url(item_url, gconf.ThingSettings.ID_REGEX)
-            likes = item.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1].text
-            data.append((item_id, int(likes)))
-
-    return dict(data)
-# endregion
-
-
-def main() :
-    # construction of json data
-    data = {'things' : {}, 'users' : {}, 'makes' : {}}
-
-    with Browser(pconf.browser, pconf.driver_path) as browser :
-        # add things to data dictionary
-        explore_list = scraper_search(browser, personal_config.PAGES_TO_SCAN)
-
-        users_set = set()
-        makes_set = set()
-        things_set = set()
-
-        remixes_to_scrape = dict()
-
-        # scrape things, load them if previously scrapped
-        if os.path.exists('temp/things.pkl') :
-            with open('temp/things.pkl', 'rb') as f :
-                data['things'], users_set, makes_set, things_set, remixes_to_scrape = pickle.load(f)
-        else :
-            for thing_id, likes in explore_list.items() :
-                print(f'> Thing {thing_id}')
-                thing = Thing(thing_id=thing_id, browser=browser)
-                thing['likes'] = likes
-
-                print("\t Fetching...")
-                thing.fetch_all()
-
-                print("\t Parsing...")
-                thing.parse_all()
-
-                # Add to data
-                data['things'].update({thing_id: thing.properties})
-                print("\t Thing added to dictionary")
-
-                # add thing id to scrapped things
-                things_set.add(thing_id)
-
-                # save user to scrape
-                users_set.add(thing['username'])
-                print("\t User added to set")
-
-                try :
-                    # save makes to scrape
-                    things_makes = thing.get_makes()
-                    makes_set |= things_makes
-                    print("\t Makes added to set")
-                except :
-                    print("\t (!) Adding makes failed")
-
-                try :
-                    # save remixes to scrape
-                    remixes_to_scrape.update(dict(thing.get_remixes()))
-                    print("\t Remixes added to set")
-                except :
-                    print("\t (!) Remixes makes failed")
-
-            with open('temp/things.pkl', 'wb') as f :
-                pickle.dump([data['things'], users_set, makes_set, things_set, remixes_to_scrape], f)
-
-        # scrape remixes, load them if previously scrapped
-        if os.path.exists('temp/remixes.pkl') :
-            with open('temp/remixes.pkl', 'rb') as f :
-                data['things'], things_set = pickle.load(f)
-        else :
-            for thing_id, likes in remixes_to_scrape.items() :
-                if thing_id not in things_set:
-                    print(f'> Remix {thing_id}')
-                    thing = Thing(thing_id=thing_id, browser=browser)
-                    thing['likes'] = likes
-
-                    print("\t Fetching...")
-                    thing.fetch_all()
-
-                    print("\t Parsing...")
-                    thing.parse_all()
-
-                    # Add to dictionary
-                    data['things'].update({thing_id: thing.properties})
-                    print("\t Thing added to dictionary")
-
-                    # save user to scrape
-                    users_set.add(thing['username'])
-                    print("\t User added to set")
-
-                    try :
-                        # save makes to scrape
-                        makes_set.union(thing.get_makes())
-                        print("\t Makes added to set")
-
-                    except :
-                        print("\t (!) Adding makes failed")
-
-            with open('temp/remixes.pkl', 'wb') as f :  # Python 3: open(..., 'wb')
-                pickle.dump([data['things'], things_set], f)
-
-        # scrape makes, load them if previously scrapped
-        if os.path.exists('temp/makes.pkl') :
-            with open('temp/makes.pkl', 'rb') as f :
-                data['makes'], makes_set = pickle.load(f)
-        else :
-            for make_id in makes_set :
-                make = Make(make_id=make_id, browser=browser)
-                make.fetch_all()
-                make.parse_all()
-
-                data['makes'].update({make_id: make.properties})
-
-            with open('temp/makes.pkl', 'wb') as f :  # Python 3: open(..., 'wb')
-                pickle.dump([data['makes'], makes_set], f)
-
-        # scrape uses, load them if previously scrapped
-        if os.path.exists('temp/users.pkl') :
-            with open('temp/users.pkl', 'rb') as f :
-                data['users'], users_set = pickle.load(f)
-        else :
-            for username in users_set :
-                user = User(username=username, browser=browser)
-                user.fetch_all()
-                user.parse_all()
-
-                data['users'].update({username: user.properties})
-
-            with open('temp/users.pkl', 'wb') as f :  # Python 3: open(..., 'wb')
-                pickle.dump([data['users'], users_set], f)
-
-    if os.path.exists('temp/data.json'):
-        with open('temp/data.json', 'r') as outfile :
-            data = json.load(outfile)
-    else:
-        with open('temp/data.json', 'w') as outfile :
-            json.dump(data, outfile)
-
-        # make = Make(make_id='908742', browser=browser)
-        # make.open_url()
-        # make.fetch_all()
-        # make.parse_all()
-        # make.print_info()
-        #
-        # user = User(username='brainchecker', browser=browser)
-        # user.fetch_all()
-        # user.parse_all()
-        # user.print_info()
-        #
-        # thing = Thing(thing_id='1179160', browser=browser)
-        # thing.fetch_all(browser)
-        # thing.parse_all()
-        # thing.print_info()
-        # print("Makes:", thing.get_makes())
-        # print("Remixes:", thing.get_remixes())
-
-    print("done")
-
-
-if __name__ == '__main__' :
-    main()
