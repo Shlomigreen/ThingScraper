@@ -209,6 +209,9 @@ def get_makes(data, settings):
                 print(f'{i} - (Makes) Failed to get makes from Thing id {k}')
                 print(f"Error of type {type(E)}:\n{E}")
             makes = [None]
+        else:
+            if settings['volume'] != 'q':
+                print(f'{i} - (Makes) Success: {k}:\n{makes}')
         for make in makes:
             if make is not None:
                 if type(make) == tuple:
@@ -273,9 +276,12 @@ def get_remixes(data, settings):
                 print(f'{i} - (Remixes) Failed to get remixes from Thing id {k}')
                 print(f"Error of type {type(E)}:\n{E}")
             remixes = [None]
+        else:
+            if settings['volume'] != 'q':
+                print(f'{i} - (Remixes) Success: {k}:\n{remixes}')
         for remix in remixes:
             if remix is not None:
-                res.update({remix[0]: remix})
+                res[remix[0]] = remix
     return res
 
 
