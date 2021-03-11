@@ -133,3 +133,6 @@ chromedriver
 
 # configurations
 # personal_config.py
+
+# temp folder
+temp/*

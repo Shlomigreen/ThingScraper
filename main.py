@@ -211,8 +211,7 @@ def follow_cli(inp, data=None):
     search_type = inp['search_type']
     if search_type == 'thing' or inp['preliminary_count'] > 0:
         data, fail = scrape_main_page(settings=inp, data=data)
-
-    if search_type == 'user':
+    elif search_type == 'user':
         data, fail = scrape_users_in_db(inp, data)
     elif search_type == 'make':
         data, fail = scrape_make_in_db(inp, data)
