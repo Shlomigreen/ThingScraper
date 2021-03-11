@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 import general_config as gconf
 import personal_config as pconf
@@ -10,6 +10,7 @@ import os
 import re
 import datetime
 import math
+import time
 
 
 # region General manipulation functions
@@ -46,7 +47,6 @@ def identifier_from_url(url, regex, group_n=1) :
 # region Parent class
 class ScrapedData :
     def __init__(self, url=None, browser=None, properties=None) :
-
         self.url = url
         self.browser = browser
         self._elements = dict()
@@ -175,8 +175,9 @@ class User(ScrapedData) :
             if 'url' in kwargs :
                 username = identifier_from_url(url=kwargs['url'],
                                                regex=gconf.UserSettings.USERNAME_REGEX)
+                del kwargs['url']
             elif 'properties' in kwargs and 'username' in kwargs['properties'] :
-                username = kwargs['username']
+                username = kwargs['properties']['username']
 
             # if neither provided, raise an error.
             else :
@@ -254,12 +255,15 @@ class User(ScrapedData) :
         if name.lower() not in gconf.UserSettings.PROFILE_ACTION_POSSIBLE_LABELS :
             raise ValueError(f'Name must be followers, following or designs. Given name: {name}')
 
-        # convert action item name to field
-        name = to_field_format(name)
+        try :
+            # convert action item name to field
+            name = to_field_format(name)
 
-        # convert found count as int if numeric and add it to properties, add None if not numeric
-        found_count = self._elements[name].text
-        self[name] = int(found_count) if found_count.strip().isnumeric() else None
+            # convert found count as int if numeric and add it to properties, add None if not numeric
+            found_count = self._elements[name].text
+            self[name] = int(found_count) if found_count.strip().isnumeric() else None
+        except :
+            self[name] = None
 
     def _parse_tab_button(self, label) :
         """
@@ -272,24 +276,33 @@ class User(ScrapedData) :
             raise ValueError(
                 f'Label must be one of {",".join(gconf.UserSettings.TAB_POSSIBLE_LABELS)}. Given label: {label}')
 
-        # convert label to field
-        label = to_field_format(label)
+        try :
+            # convert label to field
+            label = to_field_format(label)
 
-        # convert found count as int if numeric and add it to properties, add None if not numeric
-        found_count = self._elements[label].text
-        self[label] = int(found_count) if found_count.strip().isnumeric() else None
+            # convert found count as int if numeric and add it to properties, add None if not numeric
+            found_count = self._elements[label].text
+            self[label] = int(found_count) if found_count.strip().isnumeric() else None
+        except :
+            self[label] = None
 
     def _parse_title(self) :
         """
         Parse the user's self declared titles.
         """
-        self['titles'] = self._elements["title"].text.lower().split('\n')
+        try :
+            self['titles'] = self._elements["title"].text.lower().split('\n')
+        except :
+            self['titles'] = None
 
     def _parse_skill(self) :
         """
         Parse the user's self evaluated skill level.
         """
-        self['skill_level'] = self._elements['skill'].text.lower()
+        try :
+            self['skill_level'] = self._elements['skill'].text.lower()
+        except :
+            self['skill_level'] = None
 
     # endregion
 
@@ -437,8 +450,9 @@ class Make(ScrapedData) :
             if 'url' in kwargs :
                 make_id = identifier_from_url(url=kwargs['url'],
                                               regex=gconf.MakeSettings.ID_REGEX)
+                del kwargs['url']
             elif 'properties' in kwargs and 'make_id' in kwargs['properties'] :
-                make_id = kwargs['make_id']
+                make_id = kwargs['properties']['make_id']
 
             # if neither provided, raise an error.
             else :
@@ -486,8 +500,17 @@ class Make(ScrapedData) :
         make_info_element = self.browser.driver.find_element_by_xpath(gconf.MakeSettings.MAKE_INFO)
         make_info_element_parent = self.browser.find_parent(make_info_element)
 
-        self._elements['views'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.VIEWS)
-        self._elements['category'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.CATEGORY)
+        try:
+            self._elements['views'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.VIEWS)
+        except:
+            self._elements['views'] = None
+
+        # TODO: fix exception
+        # selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":".icon-category"}
+        try:
+            self._elements['category'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.CATEGORY)
+        except:
+            self._elements['category'] = None
 
     def _fetch_print_settings(self) :
         """
@@ -553,41 +576,48 @@ class Make(ScrapedData) :
         """
         Parse category.
         """
-        self.properties['category'] = self._elements['category'].text.replace("Found in ", "").lower()
+        try :
+            self.properties['category'] = self._elements['category'].text.replace("Found in ", "").lower()
+        except :
+            self['category'] = None
 
     def _parse_print_settings(self) :
         """
         Parse print settings into a dictionary that holds all information.
         """
-        # get whole text of print settings element
-        content_line = self._elements["print_settings"].text
+        try :
+            # get whole text of print settings element
+            content_line = self._elements["print_settings"].text
 
-        # Define a lambda function to that returns group 1 based on regex pattern or None of pattern not found
-        regex_result = (
-            lambda regex : None if (re.search(regex, content_line)) is None else re.search(regex, content_line).group(
-                1))
+            # Define a lambda function to that returns group 1 based on regex pattern or None of pattern not found
+            regex_result = (
+                lambda regex : None if (re.search(regex, content_line)) is None else re.search(regex,
+                                                                                               content_line).group(
+                    1))
 
-        print_settings = dict()
+            print_settings = dict()
 
-        # For each of the settings, find its value using regex
-        # done manually due to difference in field names
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[0])] = regex_result(
-            "Printer Brand:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[1])] = regex_result(
-            "Printer:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[2])] = regex_result(
-            "Rafts:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[3])] = regex_result(
-            "Supports:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[4])] = regex_result(
-            "Resolution:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[5])] = regex_result(
-            "Infill:\\n(.*?)\\n")
-        print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[6])] = regex_result(
-            "Filament: (.*)")
+            # For each of the settings, find its value using regex
+            # done manually due to difference in field names
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[0])] = regex_result(
+                "Printer Brand:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[1])] = regex_result(
+                "Printer:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[2])] = regex_result(
+                "Rafts:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[3])] = regex_result(
+                "Supports:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[4])] = regex_result(
+                "Resolution:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[5])] = regex_result(
+                "Infill:\\n(.*?)\\n")
+            print_settings[to_field_format(gconf.MakeSettings.POSSIBLE_PRINT_SETTINGS[6])] = regex_result(
+                "Filament: (.*)")
 
-        # add all settings to properties
-        self['print_settings'] = print_settings
+            # add all settings to properties
+            self['print_settings'] = print_settings
+        except :
+            self['print_settings'] = None
 
     # endregion
 
@@ -646,8 +676,9 @@ class Thing(ScrapedData) :
             if 'url' in kwargs :
                 thing_id = identifier_from_url(url=kwargs['url'],
                                                regex=gconf.ThingSettings.ID_REGEX)
+                del kwargs['url']
             elif 'properties' in kwargs and 'thing_id' in kwargs['properties'] :
-                thing_id = kwargs['thing_id']
+                thing_id = kwargs['properties']['thing_id']
             else :
                 raise ValueError(
                     "'url', 'thing_id' or properties (dictionary with 'thing_id' key) must be provided in order to create Thing instance.")
@@ -717,22 +748,28 @@ class Thing(ScrapedData) :
 
     # region Single parse methods
     def _parse_category(self) :
-        self.properties['category'] = self._elements['category'].text
+        try :
+            self.properties['category'] = self._elements['category'].text
+        except :
+            self['category'] = None
 
     def _parse_remix(self) :
-        if self._elements['remix'] is not None :
+        try :
             self.properties['remix'] = self._elements['remix'].get_attribute('href').split(sep=":")[-1]
-        else :
+        except :
             self.properties['remix'] = None
 
     def _parse_license(self) :
-        self.properties['license'] = self._elements['license'].text
+        try :
+            self.properties['license'] = self._elements['license'].text
+        except :
+            self.properties['license'] = None
 
     def _parse_print_settings(self) :
         # add empty print settings to properties (as some models may not have any print settings information
         print_settings = {to_field_format(key) : None for key in gconf.ThingSettings.POSSIBLE_PRINT_SETTINGS}
 
-        if self._elements['print_settings'] is not None :
+        try :
             for setting in self._elements['print_settings'] :
                 # using regex to obtain setting name and value into two groups
                 regex_result = re.search(gconf.ThingSettings.FIND_SETTING_REGEX, setting.get_attribute('innerHTML'))
@@ -743,12 +780,17 @@ class Thing(ScrapedData) :
 
                     if provided_property in print_settings.keys() :
                         print_settings[provided_property] = property_value
-
-        self['print_settings'] = print_settings
+        except :
+            pass
+        finally :
+            self['print_settings'] = print_settings
 
     def _parse_tags(self) :
-        # Obtain text from each tag element add add them all as a list to properties
-        self.properties['tags'] = [tag.text for tag in self._elements['tags']]
+        try :
+            # Obtain text from each tag element add add them all as a list to properties
+            self.properties['tags'] = [tag.text for tag in self._elements['tags']]
+        except :
+            self.properties['tags'] = None
 
     def _parse_metrics(self) :
         # set tab buttons to be ignore (hold not useful information)
@@ -845,14 +887,17 @@ class Thing(ScrapedData) :
         if clear_cache :
             self.clear_elements()
 
-    def get_makes(self, max_makes=gconf.MAX_MAKES_TO_SCAN) :
+    def get_makes(self, max_makes=pconf.MAX_MAKES_TO_SCAN) :
         """
         Get makes ids related with the thing.
             :param max_makes: the maximum number of makes to obtain.
-            :return: a list holding make ids related to the thing instance.
+            :return: a set holding make ids related to the thing instance.
         """
         # open web page,
         self.browser.get(gconf.ThingSettings.MAKES_URL.format(self.properties['thing_id']))
+
+        # sleep for defined seconds to get javascript loaded
+        time.sleep(pconf.IMPLICITLY_WAIT)
 
         # Handle missing number of makes
         if 'makes' not in self.keys() :
@@ -878,9 +923,9 @@ class Thing(ScrapedData) :
             make_id = identifier_from_url(make_url, gconf.MakeSettings.ID_REGEX)
             makes_list.append(make_id)
 
-        return makes_list
+        return set(makes_list)
 
-    def get_remixes(self, max_remixes=gconf.MAX_REMIXES_TO_SCAN) :
+    def get_remixes(self, max_remixes=pconf.MAX_REMIXES_TO_SCAN) :
         """
         Get remixes related to the thing instance.
             :param max_remixes: maximum number of remixes to obtain.
@@ -888,6 +933,9 @@ class Thing(ScrapedData) :
         """
         # open web page,
         self.browser.get(gconf.ThingSettings.REMIXES_URL.format(self.properties['thing_id']))
+
+        # sleep for defined seconds to get javascript loaded
+        time.sleep(pconf.IMPLICITLY_WAIT)
 
         # Handle missing number of remixes
         if 'remixes' not in self.keys() :
@@ -985,7 +1033,7 @@ class Browser :
         """
         return self.driver.current_url
 
-    def wait(self, by, name, timeout=pconf.get_wait_timeout, regex=False, find_all=False) :
+    def wait(self, by, name, timeout=pconf.WAIT_TIMEOUT, regex=False, find_all=False) :
         """
         Wait for specific element to be present in browser.
             Parameters:
@@ -1023,7 +1071,7 @@ class Browser :
         else :
             return self.driver.find_element(by, name)
 
-    def wait_and_find(self, by, name, timeout=pconf.get_wait_timeout, find_all=False, regex=False) :
+    def wait_and_find(self, by, name, timeout=pconf.WAIT_TIMEOUT, find_all=False, regex=False) :
         """Wait for given element in the opened page on the browser and return the searched result.
            Combination of Browser.wait and Browser.find methods.
             Parameters:
@@ -1033,10 +1081,13 @@ class Browser :
                 find_all (bool): if true, a list of all found elements is returned. Default: False.
                 regex (bool): if true, regex search patterns are enabled for 'name'.
                Returns:
-                (webdriver.remote.webelement.WebElement): the found element(s)
+                (webdriver.remote.webelement.WebElement): the found element(s) or None if nothing was found.
         """
-        self.wait(by, name, timeout, regex, find_all)
-        return self.find(by, name, find_all)
+        try :
+            self.wait(by, name, timeout, regex, find_all)
+            return self.find(by, name, find_all)
+        except TimeoutException :
+            return None
 
     def find_parent(self, element=None, *args, **kwargs) :
         if element is None :
@@ -1048,30 +1099,3 @@ class Browser :
             self.wait(By.CLASS_NAME, class_name)
 
         return self.driver.find_element_by_xpath(f"//{tag}[contains(@class,'{class_name}') and text()='{text}']")
-
-
-def main() :
-    with Browser(pconf.browser, pconf.driver_path) as browser :
-        make = Make('908742', browser=browser)
-        make.open_url()
-        make.fetch_all()
-        make.parse_all()
-        make.print_info()
-
-        user = User('brainchecker', browser=browser)
-        user.fetch_all()
-        user.parse_all()
-        user.print_info()
-
-        thing = Thing(thing_id='1179160', browser=browser)
-        thing.fetch_all(browser)
-        thing.parse_all()
-        thing.print_info()
-        print("Makes:", thing.get_makes())
-        print("Remixes:", thing.get_remixes())
-
-        pass
-
-
-if __name__ == '__main__' :
-    main()

@@ -1,9 +1,6 @@
 # General settings
 MAIN_URL = "https://www.thingiverse.com/"  # Url of the main domain
 THINGS_PER_PAGE = 20  # Number of things found in each explore page
-PAGES_TO_SCAN = 30  # Default value for number of pages to scan
-MAX_MAKES_TO_SCAN = 20  # Default value for maximum number of makes to scan from per thing
-MAX_REMIXES_TO_SCAN = 20  # Default value for maximum number of remixes to scan from per thing
 
 
 class ExploreList :
