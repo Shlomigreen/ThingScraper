@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 import general_config as gconf
+import personal_config
 import personal_config as pconf
 import os
 import re
@@ -502,8 +503,17 @@ class Make(ScrapedData) :
         make_info_element = self.browser.driver.find_element_by_xpath(gconf.MakeSettings.MAKE_INFO)
         make_info_element_parent = self.browser.find_parent(make_info_element)
 
-        self._elements['views'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.VIEWS)
-        self._elements['category'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.CATEGORY)
+        try:
+            self._elements['views'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.VIEWS)
+        except:
+            self._elements['views'] = None
+
+        # TODO: fix exception
+        # selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":".icon-category"}
+        try:
+            self._elements['category'] = make_info_element_parent.find_element_by_class_name(gconf.MakeSettings.CATEGORY)
+        except:
+            self._elements['category'] = None
 
     def _fetch_print_settings(self) :
         """
@@ -880,7 +890,7 @@ class Thing(ScrapedData) :
         if clear_cache :
             self.clear_elements()
 
-    def get_makes(self, max_makes=gconf.MAX_MAKES_TO_SCAN) :
+    def get_makes(self, max_makes=personal_config.MAX_MAKES_TO_SCAN) :
         """
         Get makes ids related with the thing.
             :param max_makes: the maximum number of makes to obtain.
@@ -890,7 +900,7 @@ class Thing(ScrapedData) :
         self.browser.get(gconf.ThingSettings.MAKES_URL.format(self.properties['thing_id']))
 
         # sleep for defined seconds to get javascript loaded
-        time.sleep(gconf.IMPLICITLY_WAIT)
+        time.sleep(personal_config.IMPLICITLY_WAIT)
 
         # Handle missing number of makes
         if 'makes' not in self.keys() :
@@ -918,7 +928,7 @@ class Thing(ScrapedData) :
 
         return set(makes_list)
 
-    def get_remixes(self, max_remixes=gconf.MAX_REMIXES_TO_SCAN) :
+    def get_remixes(self, max_remixes=personal_config.MAX_REMIXES_TO_SCAN) :
         """
         Get remixes related to the thing instance.
             :param max_remixes: maximum number of remixes to obtain.
@@ -928,7 +938,7 @@ class Thing(ScrapedData) :
         self.browser.get(gconf.ThingSettings.REMIXES_URL.format(self.properties['thing_id']))
 
         # sleep for defined seconds to get javascript loaded
-        time.sleep(gconf.IMPLICITLY_WAIT)
+        time.sleep(personal_config.IMPLICITLY_WAIT)
 
         # Handle missing number of remixes
         if 'remixes' not in self.keys() :
@@ -1026,7 +1036,7 @@ class Browser :
         """
         return self.driver.current_url
 
-    def wait(self, by, name, timeout=pconf.get_wait_timeout, regex=False, find_all=False) :
+    def wait(self, by, name, timeout=pconf.WAIT_TIMEOUT, regex=False, find_all=False) :
         """
         Wait for specific element to be present in browser.
             Parameters:
@@ -1064,7 +1074,7 @@ class Browser :
         else :
             return self.driver.find_element(by, name)
 
-    def wait_and_find(self, by, name, timeout=pconf.get_wait_timeout, find_all=False, regex=False) :
+    def wait_and_find(self, by, name, timeout=pconf.WAIT_TIMEOUT, find_all=False, regex=False) :
         """Wait for given element in the opened page on the browser and return the searched result.
            Combination of Browser.wait and Browser.find methods.
             Parameters:
@@ -1114,7 +1124,7 @@ def parse_explore_url(sort_='popular', time_restriction=None, page=1) :
     return base_url
 
 
-def scraper_search(browser, pages_to_scan=gconf.PAGES_TO_SCAN) :
+def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN) :
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
     :param browser: The browser we're using
@@ -1145,7 +1155,7 @@ def main() :
 
     with Browser(pconf.browser, pconf.driver_path) as browser :
         # add things to data dictionary
-        explore_list = scraper_search(browser, 1)
+        explore_list = scraper_search(browser, personal_config.PAGES_TO_SCAN)
 
         users_set = set()
         makes_set = set()
@@ -1265,11 +1275,11 @@ def main() :
                 pickle.dump([data['users'], users_set], f)
 
     if os.path.exists('temp/data.json'):
-        with open('temp/data.json', 'w') as outfile :
-            json.dump(data, outfile)
-    else:
         with open('temp/data.json', 'r') as outfile :
             data = json.load(outfile)
+    else:
+        with open('temp/data.json', 'w') as outfile :
+            json.dump(data, outfile)
 
         # make = Make(make_id='908742', browser=browser)
         # make.open_url()

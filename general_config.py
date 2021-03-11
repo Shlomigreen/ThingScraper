@@ -1,10 +1,6 @@
 # General settings
 MAIN_URL = "https://www.thingiverse.com/"  # Url of the main domain
 THINGS_PER_PAGE = 20  # Number of things found in each explore page
-PAGES_TO_SCAN = 30  # Default value for number of pages to scan
-MAX_MAKES_TO_SCAN = 1  # Default value for maximum number of makes to scan from per thing
-MAX_REMIXES_TO_SCAN = 1  # Default value for maximum number of remixes to scan from per thing
-IMPLICITLY_WAIT = 2  # Number of seconds to wait in javascript heavy sections
 
 
 class ExploreList :
@@ -102,6 +98,3 @@ class ThingSettings :
 
     # HTML paths
     LICENSE_PATH = r"//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]"
-
-class DataFrames:
-    THINGS_TABLE = ['thing_id', 'username', 'model_name', 'uploaded', 'files', 'comments', 'makes', 'likes', 'print_settings', 'license', 'remix', 'category']

@@ -136,3 +136,6 @@ chromedriver
 
 # temp folder
 temp/*
+
+#database
+Database/thingiverse.db*
