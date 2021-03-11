@@ -127,18 +127,27 @@ remix_dict = thing.get_remixes(max_remixes=MAX_REMIXES_TO_SCAN)
 ## 5. Command Line Interface
 
 When running the program through a CLI, 1st positional argument is the type of object we want to scrap, 
-should be: {Thing, User, Make, Remix}
+should be: {Thing, User, Make, Remix, All}
 
 ```
 python main.py Thing
 ```
 
+To quickly scrape for all datatype can use:
+
+
+```
+python main.py All -n items_per_page -S pages_to_scrape  
+```
+
+
+To open the help menu use:
+
+
 ```
 python main.py -h
 python main.py --help
 ```
-
-Can be used to view the help menu.
 
 ### Tags
 
@@ -148,11 +157,15 @@ The following tags are can be added:
 -S, --pre-search (int)
 ```
 
-Used when mining for non thing objects. 
-When its value is greater than 0 it will mine Things from the search page, 
-and use them as the source from which to mine the desired data.
+Used when mining for non thing objects, or when mining for all types. 
 
+When mining for a non Thing obj, and its value is greater than 0 
+it will mine Things from the search page, and use them as the source 
+from which to mine the desired data.
 The value provided indicates how many pages to mine
+
+When mining all it indicates how many front pages to scrape for things.
+
 
 ```
 -n, --num-items (int)
@@ -165,6 +178,9 @@ When used with a Thing object it indicates how many pages to scrape
 When used with a non Thing object it indicates how many items to scrape.
 In such a case a negative number can be provided to indicate scraping for 
 all values.
+
+When used with all, it indicates how many Makes and Remixes to pull per thing.
+
 
 ```
 -N, --Name (str)
