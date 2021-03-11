@@ -112,23 +112,25 @@ def scrape_main_page(settings, data=None):
     num_runs = settings['num_runs']
     if settings['search_type'] != 'thing' and settings['preliminary_count'] > 0:
         num_runs = settings['preliminary_count']
-    with Browser(settings['browser'], settings['driver_path']) as browser:
-        data_to_scrape = scraper_search(browser, num_runs)
-        failed = []
-        for key in data_to_scrape:
-            try:
-                data_to_scrape[key].fetch_all(browser)
-                data_to_scrape[key].parse_all()
-                data['Things'][key] = data_to_scrape[key]
-            except Exception as E:
-                failed.append((key, E))
-                if volume != 'q':
-                    print(f"Failed to retrieve for item id = {key}\n")
-            else:
-                if volume != 'q':
-                    print(f"Success: {key}")
-                if volume == 'v':
-                    data_to_scrape[key].print_info()
+    browser = settings['browser_obj']
+    data_to_scrape = scraper_search(browser, num_runs)
+    failed = []
+    i = 0
+    for key in data_to_scrape:
+        i += 1
+        try:
+            data_to_scrape[key].fetch_all(browser)
+            data_to_scrape[key].parse_all()
+            data['Things'][key] = data_to_scrape[key]
+        except Exception as E:
+            failed.append((key, E))
+            if volume != 'q':
+                print(f"{i} - Failed to retrieve for item id = {key}\n")
+        else:
+            if volume != 'q':
+                print(f"{i} - Success: {key}")
+            if volume == 'v':
+                data_to_scrape[key].print_info()
     return data, failed
 
 
@@ -160,37 +162,93 @@ def scrape_users_in_db(settings, db):
     """
     names_to_scrape = get_users(db, settings)
     volume = settings['volume']
-    with Browser(settings['browser'], settings['driver_path']) as browser:
-        failed = []
-        i = settings['num_runs']
-        for k in names_to_scrape:
-            if i == 0:
-                # scan up to num_runs items. If negative, scan all
-                break
-            else:
-                i += -1
-            try:
-                user = User(username=k, browser=browser)
-                user.fetch_all()
-                user.parse_all()
-                db['Users'][k] = user
-            except Exception as E:
-                failed.append((k, E))
-                if volume != 'q':
-                    print(f"Failed to retrieve for item id = {k}\n")
-            else:
-                if volume != 'q':
-                    print(f"Success: {k}")
-                if volume == 'v':
-                    user.print_info()
+    failed = []
+    j = settings['num_runs']
+    i = 0
+    for k in names_to_scrape:
+        i += 1
+        if j == 0:
+            # scan up to num_runs items. If negative, scan all
+            break
+        else:
+            j += -1
+        try:
+            user = User(username=k, browser=settings['browser_obj'])
+            user.fetch_all()
+            user.parse_all()
+            db['Users'][k] = user
+        except Exception as E:
+            failed.append((k, E))
+            if volume != 'q':
+                print(f"{i} - Failed to retrieve for item id = {k}\n")
+        else:
+            if volume != 'q':
+                print(f"{i} - Success: {k}")
+            if volume == 'v':
+                user.print_info()
     return db, failed
 
 
-def scrape_make_in_db(db, volume='q'):
+def get_makes(data, settings):
+    """
+    gets all usernames in data
+    :param data: loaded data
+    :param settings: A dict containing settings
+    :return: a set of all the usernames in the input
+    """
+    res = set()
+    items = data['Things']
+    i = 0
+    for k in items:
+        i += 1
+        try:
+            makes = items[k].get_makes(max_makes=settings['num_runs'])
+        except Exception as E:
+            if settings['volume'] != 'q':
+                print(f'{i} - Failed to get makes from Thing id {k}')
+            makes = [None]
+        for make in makes:
+            if make is not None:
+                res.add(make)
+    return res
+
+
+def scrape_make_in_db(settings, db):
+    """
+    Scrape makes from thing objects
+    :param settings: A dict containing settings
+    :param db: data we can extract makes from
+    :return: Data we scraped, and a list of ids we failed to scrape
+    """
     # TODO: Implement make scrape
     print("Make scrape not implemented yet")
-    data = db
-    return data, None
+    makes_to_scrape = get_makes(db, settings)
+    volume = settings['volume']
+    failed = []
+    j = settings['num_runs']
+    i = 0
+    for k in makes_to_scrape:
+        i += 1
+        if j == 0:
+            # scan up to num_runs items. If negative, scan all
+            break
+        else:
+            j += -1
+        try:
+            make = Make(make_id=k, browser=settings['browser_obj'])
+            make.fetch_all()
+            make.parse_all()
+            db['Makes'][k] = make
+        except Exception as E:
+            failed.append((k, E))
+            if volume != 'q':
+                print(f"{i} - Failed to retrieve for item id = {k}\n")
+        else:
+            if volume != 'q':
+                print(f"{i} - Success: {k}")
+            if volume == 'v':
+                make.print_info()
+    return db, failed
 
 
 def follow_cli(inp, data=None):
@@ -229,16 +287,18 @@ def main():
     # get initial input
     args = cli.inter_parser()
     data = data_format.copy()
-    data = follow_cli(args, data)
-    while args['Interactive']:
-        input()
-        args = cli.inter_parser()
-        print(args)
-        print("Interactive mode not implemented yet, quiting")
-        break
-        data = follow_cli(args)
-    for k in data:
-        print(f"{k}:\n{data[k]}")
+    with Browser(args['browser'], args['driver_path']) as browser:
+        args['browser_obj'] = browser
+        data = follow_cli(args, data)
+        while args['Interactive']:
+            input()
+            args = cli.inter_parser()
+            print(args)
+            print("Interactive mode not implemented yet, quiting")
+            break
+            data = follow_cli(args)
+        for k in data:
+            print(f"{k}:\n{data[k]}")
 
 
 if __name__ == '__main__':
