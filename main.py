@@ -1,4 +1,5 @@
 import general_config as gconf
+import personal_config
 from ThingScraper import Browser, Thing, User, Make
 from selenium.webdriver.common.by import By
 import cli
@@ -74,7 +75,7 @@ def load_json(file_path):
         return res
 
 
-def scraper_search(browser, pages_to_scan=gconf.PAGES_TO_SCAN):
+def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
     :param browser: The browser we're using
@@ -329,8 +330,7 @@ def follow_cli(inp, data=None):
     search_type = inp['search_type']
     if search_type == 'thing' or (search_type != 'all' and inp['preliminary_count'] > 0):
         data, fail = scrape_main_page(settings=inp, data=data)
-
-    if search_type == 'user':
+    elif search_type == 'user':
         data, fail = scrape_users_in_db(inp, data)
     elif search_type == 'make':
         data, fail = scrape_make_in_db(inp, data)
