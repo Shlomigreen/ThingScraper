@@ -1,3 +1,10 @@
+import json
+import logging
+import sys
+
+from selenium.webdriver.common.by import By
+
+import cli
 import general_config as gconf
 import personal_config
 from ThingScraper import Browser, Thing, User, Make
@@ -5,13 +12,50 @@ from selenium.webdriver.common.by import By
 import cli
 import json
 import logging
+import os
 
+# Define new logger and set its logging level
+logger = logging.getLogger(gconf.Logger.NAME)
+logger.setLevel(logging.DEBUG)
 
+# Data output structure
 data_format = {
         "things": dict(),
         "users": dict(),
         "makes": dict()
     }
+
+
+def setup_logger(to_file=True, to_screen=True):
+    """
+    Setup a logger.
+  :param
+        to_file: if true, include logging to file based on path given in general config.
+        to_screen: if true, include logging to screen (stdout)
+    """
+    # Create Formatter
+    formatter = logging.Formatter(gconf.Logger.FORMAT)
+
+    # create a file handler and add it to logger
+    if to_file:
+        # check if dir path exists
+        if not os.path.exists(gconf.Logger.LOG_DIR):
+            os.mkdir(gconf.Logger.LOG_DIR)
+
+        # generate saving path for log file
+        saving_path = os.path.join(gconf.Logger.LOG_DIR,gconf.Logger.NAME + '.log')
+
+        # create a file handler
+        file_handler = logging.FileHandler(saving_path)
+        # file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    if to_screen:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        # stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
 
 
 def parse_explore_url(sort_='popular', time_restriction=None, page=1):
@@ -88,7 +132,7 @@ def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
         url = parse_explore_url('popular', 'now-30d', i+1)
         browser.get(url)
         projects = []
-        while len(projects) < gconf.THINGS_PER_PAGE :
+        while len(projects) < gconf.THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
         print(f"Found {len(projects)} projects on page {i+1}")
         for item in projects:
@@ -394,6 +438,7 @@ def setup_log(args):
 def main():
     logger = setup_log()
     # get initial input
+    setup_logger()
     args = cli.inter_parser()
     data = data_format.copy()
     with Browser(args['browser'], args['driver_path']) as browser:

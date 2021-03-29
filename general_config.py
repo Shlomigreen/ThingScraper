@@ -37,12 +37,12 @@ class MakeSettings :
     ID_REGEX = r"make:(\d*)"
 
     POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
-                                "Printer Model",
-                                "Rafts",
-                                "Supports",
-                                "Resolution",
-                                "Infill",
-                                "Filament Brand"]
+                               "Printer Model",
+                               "Rafts",
+                               "Supports",
+                               "Resolution",
+                               "Infill",
+                               "Filament Brand"]
 
     # Classes
     SOURCE = "card-img-holder"
@@ -64,19 +64,19 @@ class MakeSettings :
 
 class ThingSettings :
     BASE_URL = r"https://www.thingiverse.com/thing:{}"
-    MAKES_URL = BASE_URL+r'/makes'
+    MAKES_URL = BASE_URL + r'/makes'
     REMIXES_URL = BASE_URL + r'/remixes'
     ID_REGEX = r"thing:(\d*)"
 
     POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
-                                "Printer Model",
-                                "Rafts",
-                                "Supports",
-                                "Resolution",
-                                "Infill",
-                                "Filament Brand",
-                                "Filament Color",
-                                "Filament Material"]
+                               "Printer Model",
+                               "Rafts",
+                               "Supports",
+                               "Resolution",
+                               "Infill",
+                               "Filament Brand",
+                               "Filament Color",
+                               "Filament Material"]
     FIND_SETTING_REGEX = r"(.*):<div>(.*)</div>"
 
     # Classes
@@ -106,3 +106,10 @@ class Logs:
     format_stream = '%(asctime)s: %(levelname)s: %(message)s'
     level_general = 'DEBUG'
     level_log = 'INFO'
+
+
+
+class Logger :
+    FORMAT = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    NAME = 'thingscraper'
+    LOG_DIR = 'Log'
