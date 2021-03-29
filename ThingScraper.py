@@ -14,7 +14,7 @@ import time
 import logging
 
 # Define new logger
-logger = logging.getLogger(gconf.Logger.NAME)
+logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
 
 # region General manipulation functions

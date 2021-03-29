@@ -1,5 +1,4 @@
 import json
-import sys
 
 from selenium.webdriver.common.by import By
 
@@ -11,8 +10,8 @@ import os
 import logging
 
 
-# Define new logger and set its logging level
-logger = logging.getLogger(__name__)
+# Define new logger
+logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
 # Data output structure
 data_format = {
@@ -364,11 +363,12 @@ def log_file_gen():
     :return: path to main log file
     """
     # check if dir path exists
-    if not os.path.exists(gconf.Logs.log_dir):
-        os.mkdir(gconf.Logs.log_dir)
+    if not os.path.exists(gconf.Logs.LOG_DIR):
+        os.mkdir(gconf.Logs.LOG_DIR)
     # generate saving path for log file
-    saving_path = os.path.join(gconf.Logs.log_dir, gconf.Logs.name_log + '.log')
-    return saving_path
+    saving_path = os.path.join(gconf.Logs.LOG_DIR, gconf.Logs.NAME_LOG + '.log')
+
+    return os.path.abspath(saving_path)
 
 
 def setup_log(log, inp):
@@ -378,23 +378,24 @@ def setup_log(log, inp):
     :param inp: user arguments
     :return: None
     """
-    log.setLevel(eval(f"logging.{gconf.Logs.level_general}"))
+    log.setLevel(eval(f"logging.{gconf.Logs.LEVEL_GENERAL}"))
 
-    formatter_log = logging.Formatter(gconf.Logs.format_log)
-    file_handler = logging.FileHandler(log_file_gen())
+    formatter_log = logging.Formatter(gconf.Logs.FORMAT_LOG)
+    log_path = log_file_gen()
+    file_handler = logging.FileHandler(log_path)
     file_handler.setFormatter(formatter_log)
-    file_handler.setLevel(eval(f"logging.{gconf.Logs.level_log}"))
+    file_handler.setLevel(eval(f"logging.{gconf.Logs.LEVEL_LOG}"))
 
     stream_handler = logging.StreamHandler()
     if inp['volume'] == 'v':
         stream_handler.setLevel(logging.DEBUG)
-        formatter_stream = logging.Formatter(gconf.Logs.format_stream_v)
+        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
     elif inp['volume'] == 'q':
         stream_handler.setLevel(logging.INFO)
-        formatter_stream = logging.Formatter(gconf.Logs.format_stream_q)
+        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_Q)
     else:
         stream_handler.setLevel(logging.INFO)
-        formatter_stream = logging.Formatter(gconf.Logs.format_stream)
+        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM)
     stream_handler.setFormatter(formatter_stream)
     log.addHandler(file_handler)
     log.addHandler(stream_handler)
