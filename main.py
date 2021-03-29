@@ -1,25 +1,66 @@
+import json
+import logging
+import sys
+
+from selenium.webdriver.common.by import By
+
+import cli
 import general_config as gconf
 import personal_config
 from ThingScraper import Browser, Thing, User, Make
-from selenium.webdriver.common.by import By
-import cli
-import json
+import os
 
+# Define new logger and set its logging level
+logger = logging.getLogger(gconf.Logger.NAME)
+logger.setLevel(logging.DEBUG)
 
+# Data output structure
 data_format = {
-        "things": dict(),
-        "users": dict(),
-        "makes": dict()
-    }
+    "things": dict(),
+    "users": dict(),
+    "makes": dict()
+}
+
+
+def setup_logger(to_file=True, to_screen=True):
+    """
+    Setup a logger.
+  :param
+        to_file: if true, include logging to file based on path given in general config.
+        to_screen: if true, include logging to screen (stdout)
+    """
+    # Create Formatter
+    formatter = logging.Formatter(gconf.Logger.FORMAT)
+
+    # create a file handler and add it to logger
+    if to_file:
+        # check if dir path exists
+        if not os.path.exists(gconf.Logger.LOG_DIR):
+            os.mkdir(gconf.Logger.LOG_DIR)
+
+        # generate saving path for log file
+        saving_path = os.path.join(gconf.Logger.LOG_DIR,gconf.Logger.NAME + '.log')
+
+        # create a file handler
+        file_handler = logging.FileHandler(saving_path)
+        # file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    if to_screen:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        # stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
 
 
 def parse_explore_url(sort_='popular', time_restriction=None, page=1):
     """
     Generates a url that leads to an explore page based on given parameters
-    :param sort_: sort type. can be: popular, newest or makes
-    :param time_restriction: restriction when sorted by popular: now-7d, now-30d, now-365d, None (All time)
-    :param page: page number
-    :return: url in str format
+  :param sort_: sort type. can be: popular, newest or makes
+  :param time_restriction: restriction when sorted by popular: now-7d, now-30d, now-365d, None (All time)
+  :param page: page number
+  :return: url in str format
     """
     base_url = gconf.MAIN_URL + r'search?type=things&q=&sort='
     # sort_: popular, newest or makes
@@ -35,9 +76,9 @@ def parse_explore_url(sort_='popular', time_restriction=None, page=1):
 def save_json(file_path, things_dict):
     """
     Saves the file
-    :param file_path: where to save the file (includes name)
-    :param things_dict: A dictionary where the key is the id, and the value is a Thing object
-    :return: (bool) True if saved successfully
+  :param file_path: where to save the file (includes name)
+  :param things_dict: A dictionary where the key is the id, and the value is a Thing object
+  :return: (bool) True if saved successfully
     """
     state = False
     try:
@@ -56,8 +97,8 @@ def save_json(file_path, things_dict):
 def load_json(file_path):
     """
     Opens saved file
-    :param file_path: where to save the file (includes name)
-    :return: A dict where the key is a thing id, and the value is a Thing object
+  :param file_path: where to save the file (includes name)
+  :return: A dict where the key is a thing id, and the value is a Thing object
     """
     res = data_format.copy()
     try:
@@ -78,18 +119,18 @@ def load_json(file_path):
 def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
-    :param browser: The browser we're using
-    :param pages_to_scan: The amount of pages we want to scan on the site
-    :return: A dictionary, where the key is the "thing id", and the value is a dictionary containing the likes value.
+  :param browser: The browser we're using
+  :param pages_to_scan: The amount of pages we want to scan on the site
+  :return: A dictionary, where the key is the "thing id", and the value is a dictionary containing the likes value.
     """
     data = []
     for i in range(pages_to_scan):
-        url = parse_explore_url('popular', 'now-30d', i+1)
+        url = parse_explore_url('popular', 'now-30d', i + 1)
         browser.get(url)
         projects = []
-        while len(projects) < gconf.THINGS_PER_PAGE :
+        while len(projects) < gconf.THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
-        print(f"Found {len(projects)} projects on page {i+1}")
+        print(f"Found {len(projects)} projects on page {i + 1}")
         for item in projects:
             item_id = item.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
@@ -103,9 +144,9 @@ def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
 def scrape_main_page(settings, data=None):
     """
     Scrape main page for
-    :param settings: A dict containing settings
-    :param data: data from previous runs
-    :return: Data we scraped, and a list of ids we failed to scrape
+  :param settings: A dict containing settings
+  :param data: data from previous runs
+  :return: Data we scraped, and a list of ids we failed to scrape
     """
     if data is None:
         data = data_format.copy()
@@ -138,9 +179,9 @@ def scrape_main_page(settings, data=None):
 def get_users(data, settings):
     """
     gets all usernames in data
-    :param data: loaded data
-    :param settings: A dict containing settings
-    :return: a set of all the usernames in the input
+  :param data: loaded data
+  :param settings: A dict containing settings
+  :return: a set of all the usernames in the input
     """
     res = set()
     items = dict()
@@ -157,9 +198,9 @@ def get_users(data, settings):
 def scrape_users_in_db(settings, db):
     """
     Scrape user data
-    :param settings: A dict containing settings
-    :param db: data we can extract usernames from
-    :return: Data we scraped, and a list of ids we failed to scrape
+  :param settings: A dict containing settings
+  :param db: data we can extract usernames from
+  :return: Data we scraped, and a list of ids we failed to scrape
     """
     names_to_scrape = get_users(db, settings)
     volume = settings['volume']
@@ -193,9 +234,9 @@ def scrape_users_in_db(settings, db):
 def get_makes(data, settings):
     """
     gets all makes in data
-    :param data: loaded data
-    :param settings: A dict containing settings
-    :return: a set of all the usernames in the input
+  :param data: loaded data
+  :param settings: A dict containing settings
+  :return: a set of all the usernames in the input
     """
     res = set()
     items = data['things']
@@ -224,9 +265,9 @@ def get_makes(data, settings):
 def scrape_make_in_db(settings, db):
     """
     Scrape makes from thing objects
-    :param settings: A dict containing settings
-    :param db: data we can extract makes from
-    :return: Data we scraped, and a list of ids we failed to scrape
+  :param settings: A dict containing settings
+  :param db: data we can extract makes from
+  :return: Data we scraped, and a list of ids we failed to scrape
     """
     makes_to_scrape = get_makes(db, settings)
     volume = settings['volume']
@@ -260,9 +301,9 @@ def scrape_make_in_db(settings, db):
 def get_remixes(data, settings):
     """
     gets all remixes in data
-    :param data: loaded data
-    :param settings: A dict containing settings
-    :return: a set of all the usernames in the input
+  :param data: loaded data
+  :param settings: A dict containing settings
+  :return: a set of all the usernames in the input
     """
     res = dict()
     items = data['things']
@@ -288,9 +329,9 @@ def get_remixes(data, settings):
 def scrape_remixes_in_db(settings, db):
     """
     Scrape remixes from thing objects
-    :param settings: A dict containing settings
-    :param db: data we can extract makes from
-    :return: Data we scraped, and a list of ids we failed to scrape
+  :param settings: A dict containing settings
+  :param db: data we can extract makes from
+  :return: Data we scraped, and a list of ids we failed to scrape
     """
     remixes_to_scrape = get_remixes(db, settings)
     volume = settings['volume']
@@ -325,9 +366,9 @@ def scrape_remixes_in_db(settings, db):
 def follow_cli(inp, data=None):
     """
     Follow instructions from CLI
-    :param inp: Instructions from CLI
-    :param data: Data about the website
-    :return: Data object updated
+  :param inp: Instructions from CLI
+  :param data: Data about the website
+  :return: Data object updated
     """
     if data is None:
         data = data_format.copy()
@@ -362,6 +403,7 @@ def follow_cli(inp, data=None):
 
 def main():
     # get initial input
+    setup_logger()
     args = cli.inter_parser()
     data = data_format.copy()
     with Browser(args['browser'], args['driver_path']) as browser:
