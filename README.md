@@ -278,7 +278,7 @@ Once a JSON file was created after scraping some things, an sqlite database can 
 ```python
 from Database.build_db import build_database
 
-build_database(json_path, db_path=['thingiverse.db'])
+build_database(json_path, db_name=['thingiverse.db'])
 # json_path: the path to the JSON file created from CLI
 # db_path: the path to save the created database. Default: 'thingiverse.db'
 ```

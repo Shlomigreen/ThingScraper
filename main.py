@@ -1,5 +1,4 @@
 import json
-import logging
 import sys
 
 from selenium.webdriver.common.by import By
@@ -9,6 +8,8 @@ import general_config as gconf
 import personal_config
 from ThingScraper import Browser, Thing, User, Make
 import os
+import logging
+
 
 # Define new logger and set its logging level
 logger = logging.getLogger(gconf.Logger.NAME)
