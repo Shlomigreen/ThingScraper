@@ -3,37 +3,13 @@ MAIN_URL = "https://www.thingiverse.com/"  # Url of the main domain
 THINGS_PER_PAGE = 20  # Number of things found in each explore page
 
 
-class ExploreList:
+class ExploreList :
     THING_CARD = "ThingCard__thingCard--1IcHY"
     CARD_BODY = "ThingCardBody__cardBodyWrapper--ba5pu"
     THING_LIKES = "CardActionItem__textWrapper--2wTM-"
 
 
-class UserSettings:
-    class Elements:
-        FOLLOWERS = 'followers'
-        FOLLOWING = 'following'
-        DESIGNS = 'designs'
-        FAVORITES = 'favorites'
-        COLLECTIONS = 'collections'
-        MAKES = 'makes'
-        LIKES = 'likes'
-        TITLE = 'title'
-        SKILL_LEVEL = 'skill'
-
-    class Properties:
-        USERNAME = 'username'
-        FOLLOWERS = 'followers'
-        FOLLOWING = 'following'
-        DESIGNS = 'designs'
-        FAVORITES = 'favorites'
-        COLLECTIONS = 'collections'
-        MAKES = 'makes'
-        LIKES = 'likes'
-        TITLES = 'titles'
-        SKILL_LEVEL = 'skill_level'
-
-
+class UserSettings :
     # Urls
     BASE_URL = "https://www.thingiverse.com/{}/designs"
     MAKES_URL = "https://www.thingiverse.com/{}/makes"
@@ -56,33 +32,10 @@ class UserSettings:
     ABOUT_WIDGET_SKILL = "UserAboutWidget__skillLevelWrapper--3eHjx"
 
 
-class MakeSettings():
-    class Elements:
-        SOURCE = 'source'
-        PAGE_INFO = 'page_info'
-        LIKES = 'like'
-        COMMENTS = 'comments'  # as appear in thingiverse
-        SHARES = 'share'  # as appear in thingiverse
-        VIEWS = 'views'  # as appear in thingiverse
-        CATEGORY = 'category'
-        PRINT_SETTINGS = 'print_settings'
-
-    class Properties:
-        MAKE_ID = 'make_id'
-        THING_ID = 'thingiverse_id'
-        USERNAME = 'username'
-        UPLOADED = 'uploaded'
-        LIKES = 'like'  # must be the same as in elements
-        COMMENTS = 'comments'   # must be the same as in elements
-        SHARES = 'share'   # must be the same as in elements
-        VIEWS = 'views'
-        CATEGORY = 'category'
-        PRINT_SETTINGS = 'print_settings'
-
+class MakeSettings :
     BASE_URL = "https://www.thingiverse.com/make:{}"
     ID_REGEX = r"make:(\d*)"
 
-    # Code in ThingScraper is using indices of the following list, thus - ORDER MATTERS
     POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
                                "Printer Model",
                                "Rafts",
@@ -109,33 +62,7 @@ class MakeSettings():
     CATEGORY_REGEX = r"Found in (.*)"
 
 
-class ThingSettings:
-    class Elements:
-        MODEL_NAME = 'model_name'
-        CREATOR = 'created_by'
-        TABS = 'tab_buttons'
-        TAGS = 'tags'
-        PRINT_SETTINGS = 'print_settings'
-        LICENSE = 'license'
-        REMIX = 'remix'
-        CATEGORY = 'category'
-
-    class Properties:
-        THING_ID = 'thing_id'
-        MODEL_NAME = 'model_name'
-        USERNAME = 'username'
-        UPLOADED = 'uploaded'
-        FILES = 'thing_files'
-        COMMENTS = 'comments'   # as appear in thingiverse, lowercase
-        MAKES = 'makes'   # as appear in thingiverse, lowercase
-        REMIXES = 'remixes'  # as appear in thingiverse, lowercase
-        TAGS = 'tags'
-        LICENSE = 'license'
-        REMIX = 'remix'
-        CATEGORY = 'category'
-        LIKES = 'likes'
-        PRINT_SETTINGS = 'print_settings'
-
+class ThingSettings :
     BASE_URL = r"https://www.thingiverse.com/thing:{}"
     MAKES_URL = BASE_URL + r'/makes'
     REMIXES_URL = BASE_URL + r'/remixes'
@@ -173,11 +100,15 @@ class ThingSettings:
     LICENSE_PATH = r"//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]"
 
 
-class Logger:
-    FORMAT = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(' \
-             'message)s '
-    NAME = 'thingscraper'
-    LOG_DIR = 'Log'
+class Logs:
+    format_log = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    format_stream = '%(asctime)s: %(levelname)s: %(message)s'
+    format_stream_v = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    format_stream_q = '%(asctime)s: %(levelname)s: %(message)s'
+    level_general = 'DEBUG'
+    level_log = 'INFO'
+    name_log = 'thingscraper'
+    log_dir = 'Log'
 
 
 class Errors:
