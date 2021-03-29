@@ -8,15 +8,10 @@ import cli
 import general_config as gconf
 import personal_config
 from ThingScraper import Browser, Thing, User, Make
-from selenium.webdriver.common.by import By
-import cli
-import json
-import logging
 import os
 
 # Define new logger and set its logging level
-logger = logging.getLogger(gconf.Logger.NAME)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Data output structure
 data_format = {
@@ -24,38 +19,6 @@ data_format = {
         "users": dict(),
         "makes": dict()
     }
-
-
-def setup_logger(to_file=True, to_screen=True):
-    """
-    Setup a logger.
-  :param
-        to_file: if true, include logging to file based on path given in general config.
-        to_screen: if true, include logging to screen (stdout)
-    """
-    # Create Formatter
-    formatter = logging.Formatter(gconf.Logger.FORMAT)
-
-    # create a file handler and add it to logger
-    if to_file:
-        # check if dir path exists
-        if not os.path.exists(gconf.Logger.LOG_DIR):
-            os.mkdir(gconf.Logger.LOG_DIR)
-
-        # generate saving path for log file
-        saving_path = os.path.join(gconf.Logger.LOG_DIR,gconf.Logger.NAME + '.log')
-
-        # create a file handler
-        file_handler = logging.FileHandler(saving_path)
-        # file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-    if to_screen:
-        stream_handler = logging.StreamHandler(sys.stdout)
-        # stream_handler.setLevel(logging.INFO)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
 
 
 def parse_explore_url(sort_='popular', time_restriction=None, page=1):
@@ -87,13 +50,15 @@ def save_json(file_path, things_dict):
     state = False
     try:
         with open(file_path, 'w') as file:
+            logger.debug("beginning save: opened save file")
             data = {data_type: {k: things_dict[data_type][k].properties for k in things_dict[data_type]}
                     for data_type in things_dict}
             json.dump(data, file)
     except Exception as E:
-        print(f"Could not save the file:\n{type(E)}: {E}")
+        logger.exception(f"Could not save the file:\n{type(E)}: {E}")
     else:
         state = True
+        logger.debug("saved successfully")
     finally:
         return state
 
@@ -109,9 +74,9 @@ def load_json(file_path):
         with open(file_path, 'r') as file:
             data = json.load(file)
     except FileNotFoundError as E:
-        print(f"File {file_path} not found:\n{E}")
+        logger.exception(f"File {file_path} not found:\n{E}")
     except Exception as E:
-        print(f"Could not open the file:\n{E}")
+        logger.exception(f"Could not open the file:\n{E}")
     else:
         res["things"] = {k: Thing(thing_id=k, properties=data["things"][k]) for k in data["things"]}
         res["users"] = {k: User(username=k, properties=data["users"][k]) for k in data["users"]}
@@ -134,7 +99,7 @@ def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
         projects = []
         while len(projects) < gconf.THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
-        print(f"Found {len(projects)} projects on page {i+1}")
+        logger.debug(f"Found {len(projects)} projects on page {i+1}")
         for item in projects:
             item_id = item.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
@@ -170,11 +135,9 @@ def scrape_main_page(settings, data=None):
             data['things'][key] = data_to_scrape[key]
         except Exception as E:
             failed.append((key, E))
-            if volume != 'q':
-                print(f"{i} - (Thing) Failed to retrieve for item id = {key}\n")
+            logger.debug(f"{i} - (Thing) Failed to retrieve for item id = {key}\n")
         else:
-            if volume != 'q':
-                print(f"{i} - (Thing) Success: {key}")
+            logger.debug(f"{i} - (Thing) Success: {key}")
             if volume == 'v':
                 data_to_scrape[key].print_info()
     return data, failed
@@ -225,11 +188,9 @@ def scrape_users_in_db(settings, db):
             db['users'][k] = user
         except Exception as E:
             failed.append((k, E))
-            if volume != 'q':
-                print(f"{i} - (User) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{i} - (User) Failed to retrieve for item id = {k}\n")
         else:
-            if volume != 'q':
-                print(f"{i} - (User) Success: {k}")
+            logger.debug(f"{i} - (User) Success: {k}")
             if volume == 'v':
                 user.print_info()
     return db, failed
@@ -250,13 +211,11 @@ def get_makes(data, settings):
         try:
             makes = items[k].get_makes(max_makes=settings['num_runs'])
         except Exception as E:
-            if settings['volume'] != 'q':
-                print(f'{i} - (Makes) Failed to get makes from Thing id {k}')
-                print(f"Error of type {type(E)}:\n{E}")
+            logger.exception(f'{i} - (Makes) Failed to get makes from Thing id {k}')
+            # print(f"Error of type {type(E)}:\n{E}")
             makes = [None]
         else:
-            if settings['volume'] != 'q':
-                print(f'{i} - (Makes) Success: {k}:\n{makes}')
+            logger.debug(f'{i} - (Makes) Success: {k}:\n{makes}')
         for make in makes:
             if make is not None:
                 if type(make) == tuple:
@@ -292,11 +251,9 @@ def scrape_make_in_db(settings, db):
             db['makes'][k] = make
         except Exception as E:
             failed.append((k, E))
-            if volume != 'q':
-                print(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
         else:
-            if volume != 'q':
-                print(f"{i} - (Make) Success: {k}")
+            logger.debug(f"{i} - (Make) Success: {k}")
             if volume == 'v':
                 make.print_info()
     return db, failed
@@ -317,13 +274,10 @@ def get_remixes(data, settings):
         try:
             remixes = items[k].get_remixes(max_remixes=settings['num_runs'])
         except Exception as E:
-            if settings['volume'] != 'q':
-                print(f'{i} - (Remixes) Failed to get remixes from Thing id {k}')
-                print(f"Error of type {type(E)}:\n{E}")
+            logger.exception(f'{i} - (Remixes) Failed to get remixes from Thing id {k}')
             remixes = [None]
         else:
-            if settings['volume'] != 'q':
-                print(f'{i} - (Remixes) Success: {k}:\n{remixes}')
+            logger.debug(f'{i} - (Remixes) Success: {k}:\n{remixes}')
         for remix in remixes:
             if remix is not None:
                 res[remix[0]] = remix
@@ -357,11 +311,9 @@ def scrape_remixes_in_db(settings, db):
             db['things'][k] = remix
         except Exception as E:
             failed.append((k, E))
-            if volume != 'q':
-                print(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
         else:
-            if volume != 'q':
-                print(f"{i} - (Remix) Success: {k}")
+            logger.debug(f"{i} - (Remix) Success: {k}")
             if volume == 'v':
                 remix.print_info()
     return db, failed
@@ -397,7 +349,7 @@ def follow_cli(inp, data=None):
         data, fail = scrape_make_in_db(inp, data)
         data, fail = scrape_users_in_db(inp, data)
     else:
-        print(f"{search_type} scraping not implemented yet")
+        logger.warning(f"{search_type} scraping not implemented yet")
 
     if inp['do_save_json']:
         save_json(inp['save_name'] + '.json', data)
@@ -405,56 +357,71 @@ def follow_cli(inp, data=None):
     return data
 
 
-def setup_log(args):
+def log_file_gen():
     """
-    setup the logger based on the config file settings
-    :param args: user arguments
-    :return: logger
+    handles file location for logs storage
+    :return: path to main log file
     """
-    logger = logging.getLogger(__name__)
-    logger.setLevel(eval(f"logging.{gconf.Logs.level_general}"))
+    # check if dir path exists
+    if not os.path.exists(gconf.Logs.log_dir):
+        os.mkdir(gconf.Logs.log_dir)
+    # generate saving path for log file
+    saving_path = os.path.join(gconf.Logs.log_dir, gconf.Logs.name_log + '.log')
+    return saving_path
+
+
+def setup_log(log, inp):
+    """
+    setup the log based on the config file settings
+    :param log: logger obj we're setting up
+    :param inp: user arguments
+    :return: None
+    """
+    log.setLevel(eval(f"logging.{gconf.Logs.level_general}"))
 
     formatter_log = logging.Formatter(gconf.Logs.format_log)
-    file_handler = logging.FileHandler(gconf.Logs.loc)
+    file_handler = logging.FileHandler(log_file_gen())
     file_handler.setFormatter(formatter_log)
     file_handler.setLevel(eval(f"logging.{gconf.Logs.level_log}"))
 
-    formatter_stream = logging.Formatter(gconf.Logs.format_stream)
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter_stream)
-    if args['volume'] == 'v':
+    if inp['volume'] == 'v':
         stream_handler.setLevel(logging.DEBUG)
-    elif args['volume'] == 'q':
-        stream_handler.setLevel(logging.WARNING)
+        formatter_stream = logging.Formatter(gconf.Logs.format_stream_v)
+    elif inp['volume'] == 'q':
+        stream_handler.setLevel(logging.INFO)
+        formatter_stream = logging.Formatter(gconf.Logs.format_stream_q)
     else:
         stream_handler.setLevel(logging.INFO)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    logger.info("debugger has been setup successfully")
-    return logger
+        formatter_stream = logging.Formatter(gconf.Logs.format_stream)
+    stream_handler.setFormatter(formatter_stream)
+    log.addHandler(file_handler)
+    log.addHandler(stream_handler)
+    log.info("logger has been setup successfully")
 
 
 def main():
-    logger = setup_log()
     # get initial input
-    setup_logger()
     args = cli.inter_parser()
+    setup_log(logger, args)
     data = data_format.copy()
+    logger.debug('Created base data template')
     with Browser(args['browser'], args['driver_path']) as browser:
+        logger.info('Opened browser obj')
         args['browser_obj'] = browser
         data = follow_cli(args, data)
         while args['Interactive']:
-            input()
+            input('*'*25)
             args = cli.inter_parser()
-            print(args)
-            print("Interactive mode not implemented yet, quiting")
+            logger.debug(f"args = {args}")
+            logger.warning("Interactive mode not implemented yet, quiting")
             # TODO: implement support for interactive mode
             break
             data = follow_cli(args)
         for k in data:
-            print(f"{k}:\n{data[k]}")
+            logger.debug(f"{k}:\n{data[k]}")
         input('Done, press any key to quit')
+    logger.info('Done with browser obj')
 
 
 if __name__ == '__main__':

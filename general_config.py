@@ -101,15 +101,11 @@ class ThingSettings :
 
 
 class Logs:
-    loc = 'info.log'
-    format_log = '%(asctime)s: %(levelname)s: %(message)s'
+    format_log = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
     format_stream = '%(asctime)s: %(levelname)s: %(message)s'
+    format_stream_v = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    format_stream_q = '%(asctime)s: %(levelname)s: %(message)s'
     level_general = 'DEBUG'
     level_log = 'INFO'
-
-
-
-class Logger :
-    FORMAT = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
-    NAME = 'thingscraper'
-    LOG_DIR = 'Log'
+    name_log = 'thingscraper'
+    log_dir = 'Log'
