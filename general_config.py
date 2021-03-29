@@ -100,7 +100,12 @@ class ThingSettings :
     LICENSE_PATH = r"//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]"
 
 
-class Logger :
-    FORMAT = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
-    NAME = 'thingscraper'
-    LOG_DIR = 'Log'
+class Logs:
+    format_log = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    format_stream = '%(asctime)s: %(levelname)s: %(message)s'
+    format_stream_v = '(%(asctime)s)  |  %(levelname)s  |  FILE:%(filename)s   FUNC:%(funcName)s   LINE:%(lineno)d :  %(message)s'
+    format_stream_q = '%(asctime)s: %(levelname)s: %(message)s'
+    level_general = 'DEBUG'
+    level_log = 'INFO'
+    name_log = 'thingscraper'
+    log_dir = 'Log'
