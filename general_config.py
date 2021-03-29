@@ -98,3 +98,11 @@ class ThingSettings :
 
     # HTML paths
     LICENSE_PATH = r"//a[@class='License__link--NFT8l' and not(@class='License__creator--4riPo')]"
+
+
+class Logs:
+    loc = 'info.log'
+    format_log = '%(asctime)s: %(levelname)s: %(message)s'
+    format_stream = '%(asctime)s: %(levelname)s: %(message)s'
+    level_general = 'DEBUG'
+    level_log = 'INFO'

@@ -4,6 +4,7 @@ from ThingScraper import Browser, Thing, User, Make
 from selenium.webdriver.common.by import By
 import cli
 import json
+import logging
 
 
 data_format = {
@@ -360,7 +361,38 @@ def follow_cli(inp, data=None):
     return data
 
 
+def setup_log(args):
+    """
+    setup the logger based on the config file settings
+    :param args: user arguments
+    :return: logger
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(eval(f"logging.{gconf.Logs.level_general}"))
+
+    formatter_log = logging.Formatter(gconf.Logs.format_log)
+    file_handler = logging.FileHandler(gconf.Logs.loc)
+    file_handler.setFormatter(formatter_log)
+    file_handler.setLevel(eval(f"logging.{gconf.Logs.level_log}"))
+
+    formatter_stream = logging.Formatter(gconf.Logs.format_stream)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter_stream)
+    if args['volume'] == 'v':
+        stream_handler.setLevel(logging.DEBUG)
+    elif args['volume'] == 'q':
+        stream_handler.setLevel(logging.WARNING)
+    else:
+        stream_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+    logger.info("debugger has been setup successfully")
+    return logger
+
+
 def main():
+    logger = setup_log()
     # get initial input
     args = cli.inter_parser()
     data = data_format.copy()
