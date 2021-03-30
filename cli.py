@@ -8,6 +8,17 @@ def cli_set_arguments():
     :return: The parser with the new arguments
     """
     parser = argparse.ArgumentParser(description="Scrap data from thingiverse")
+    parser = set_parser_args(parser)
+    parser = set_parser_groups(parser)
+    return parser
+
+
+def set_parser_args(parser):
+    """
+    Add arguments to parser
+    :param parser: parser we are modifying
+    :return: modified parser
+    """
     parser.add_argument('type', type=str, metavar='{Thing, Make, User, Remix, APIs, All}',
                         help='Type of data to scrap', default='Thing')
     # parser.add_argument('-I', '--Interactive', help='Opens program in interactive mode', action='store_true')
@@ -30,11 +41,19 @@ def cli_set_arguments():
                              '40 = verbose')
     parser.add_argument('--google-app-name', help='google developer code used to access google APIs',
                         type=str, default=pconf.google_ktree_API_key)
+    return parser
 
+
+def set_parser_groups(parser):
+    """
+    Add mutually exclusive groups to parser
+    :param parser: parser we are modifying
+    :return: modified parser
+    """
     gr_data = parser.add_mutually_exclusive_group()
     # where to load data from at the start of the run
     gr_data.add_argument('-j', '--load-json', help='loads a json save file', action='store_true')
-    # gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
+    gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
 
     # gr_db = parser.add_mutually_exclusive_group()
     # # how to save results to db
@@ -44,37 +63,3 @@ def cli_set_arguments():
     #                    action='store_true')
     # gr_db.add_argument('--replace', help='delete all data once done scraping, and start anew', action='store_true')
     return parser
-
-
-def inter_parser(args=None, parser=None):
-    """
-    An interpreter for the parser obj, can inject our own arguments.
-    :param args: Arguments passed for testing/ through other program (If None use CLI input)
-    :param parser: A predefined parser
-    :return: None
-    """
-    if parser is None:
-        parser = cli_set_arguments()
-    if args is None:
-        # No arguments, use command line for input (CLI mode)
-        args = parser.parse_args()
-    inp = dict()
-
-    inp['num_runs'] = vars(args).get("num_items", 500)
-    inp['save_name'] = vars(args).get("Name", pconf.def_save_name)
-    inp['browser'] = vars(args).get("Browser", pconf.browser)
-    inp['driver_path'] = vars(args).get("Driver", pconf.driver_path)
-
-    inp['search_type'] = vars(args).get("type", 'thing').lower()
-    inp['volume'] = vars(args)['volume']
-    inp['save_to_db_mode'] = 'u' if vars(args).get("update", False) else \
-        'a' if vars(args).get("append", False) else \
-        'p' if vars(args).get("print", False) else \
-        'n'
-    inp['load_type'] = 'd' if vars(args).get("load_db", False) else \
-        'j' if vars(args).get("load_json", False) else \
-        'n'
-    inp['do_save_json'] = vars(args).get("save_json", False)
-    inp['preliminary_count'] = vars(args).get("pre_search", 0) if inp['search_type'] != 'thing' else 0
-    inp['google_app_id'] = vars(args)['google_app_name']
-    return inp

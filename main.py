@@ -120,9 +120,9 @@ def scrape_main_page(settings, data=None):
     """
     if data is None:
         data = data_format.copy()
-    num_runs = settings['num_runs'] if settings['search_type'] != 'all' else settings['preliminary_count']
-    if settings['search_type'] != 'thing' and settings['preliminary_count'] > 0:
-        num_runs = settings['preliminary_count']
+    num_runs = settings['num_items'] if settings['type'] != 'all' else settings['pre_search']
+    if settings['type'] != 'thing' and settings['pre_search'] > 0:
+        num_runs = settings['pre_search']
     browser = settings['browser_obj']
     data_to_scrape = scraper_search(browser, num_runs)
     failed = []
@@ -153,7 +153,8 @@ def get_users(data, settings):
     res = set()
     items = dict()
     for k in data:
-        if k != 'users' or settings['save_to_db_mode'] == 'u':
+        # if k != 'users' or settings['update']:
+        if k != 'users':
             items.update(data[k])
     for k in items:
         a = items[k]['username']
@@ -171,12 +172,12 @@ def scrape_users_in_db(settings, db):
     """
     names_to_scrape = get_users(db, settings)
     failed = []
-    j = settings['num_runs']
+    j = settings['num_items']
     i = 0
     for k in names_to_scrape:
         i += 1
-        if j == 0 and settings['search_type'] != 'all':
-            # scan up to num_runs items. If negative, scan all
+        if j == 0 and settings['type'] != 'all':
+            # scan up to num_items items. If negative, scan all
             break
         else:
             j += -1
@@ -208,7 +209,7 @@ def get_makes(data, settings):
     for k in items:
         i += 1
         try:
-            makes = items[k].get_makes(max_makes=settings['num_runs'])
+            makes = items[k].get_makes(max_makes=settings['num_items'])
         except Exception as E:
             logger.exception(f'{i} - (Makes) Failed to get makes from Thing id {k}')
             # print(f"Error of type {type(E)}:\n{E}")
@@ -233,12 +234,12 @@ def scrape_make_in_db(settings, db):
     """
     makes_to_scrape = get_makes(db, settings)
     failed = []
-    j = settings['num_runs']
+    j = settings['num_items']
     i = 0
     for k in makes_to_scrape:
         i += 1
-        if j == 0 and settings['search_type'] != 'all':
-            # scan up to num_runs items. If negative, scan all
+        if j == 0 and settings['type'] != 'all':
+            # scan up to num_items items. If negative, scan all
             break
         else:
             j += -1
@@ -270,7 +271,7 @@ def get_remixes(data, settings):
     for k in items:
         i += 1
         try:
-            remixes = items[k].get_remixes(max_remixes=settings['num_runs'])
+            remixes = items[k].get_remixes(max_remixes=settings['num_items'])
         except Exception as E:
             logger.exception(f'{i} - (Remixes) Failed to get remixes from Thing id {k}')
             remixes = [None]
@@ -291,12 +292,12 @@ def scrape_remixes_in_db(settings, db):
     """
     remixes_to_scrape = get_remixes(db, settings)
     failed = []
-    j = settings['num_runs']
+    j = settings['num_items']
     i = 0
     for k in remixes_to_scrape:
         i += 1
-        if j == 0 and settings['search_type'] != 'all':
-            # scan up to num_runs items. If negative, scan all
+        if j == 0 and settings['type'] != 'all':
+            # scan up to num_items items. If negative, scan all
             break
         else:
             j += -1
@@ -318,12 +319,12 @@ def scrape_remixes_in_db(settings, db):
 
 def enrich_with_apis(inp, data):
     """
-
-    :param inp:
-    :param data:
-    :return:
+    Use external APIs to add data to the database (modifies data inplace)
+    :param inp: arguments passed by the user
+    :param data: loaded data
+    :return: None
     """
-    APIs.enrich_with_apis(data, inp['num_runs'], inp['google_app_id'])
+    APIs.enrich_with_apis(data, inp['num_items'], inp['google_app_name'])
 
 
 def follow_cli(inp, data=None):
@@ -335,14 +336,14 @@ def follow_cli(inp, data=None):
     """
     if data is None:
         data = data_format.copy()
-    a = inp['load_type']
-    if a == 'j':
-        data = load_json(inp['save_name'] + '.json')
-    elif a == 'd':
+    if inp['load_json']:
+        data = load_json(inp['Name'] + '.json')
+    elif inp['load_db']:
         pass
 
-    search_type = inp['search_type']
-    if search_type == 'thing' or (search_type != 'all' and inp['preliminary_count'] > 0):
+    search_type = inp['type'].lower()
+    logger.debug(f"chose to scan for {search_type}")
+    if search_type == 'thing' or (search_type != 'all' and inp['pre_search'] > 0):
         data, fail = scrape_main_page(settings=inp, data=data)
     elif search_type == 'user':
         data, fail = scrape_users_in_db(inp, data)
@@ -361,8 +362,8 @@ def follow_cli(inp, data=None):
     else:
         logger.warning(f"{search_type} scraping not implemented yet")
 
-    if inp['do_save_json']:
-        save_json(inp['save_name'] + '.json', data)
+    if inp['save_json']:
+        save_json(inp['Name'] + '.json', data)
 
     return data
 
@@ -396,15 +397,15 @@ def setup_log(log, inp):
     file_handler.setLevel(eval(f"logging.{gconf.Logs.LEVEL_LOG}"))
 
     stream_handler = logging.StreamHandler()
-    if inp['volume'] < 20:
+    if inp.volume < 20:
         # quite mode
         stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_Q)
-    elif inp['volume'] < 30:
+    elif inp.volume < 30:
         # normal mode
         stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM)
-    elif inp['volume'] < 40:
+    elif inp.volume < 40:
         # debug mode
         stream_handler.setLevel(logging.DEBUG)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
@@ -419,14 +420,18 @@ def setup_log(log, inp):
 
 
 def main():
-    args = cli.inter_parser()
+    # args = cli.inter_parser()
+    parser = cli.cli_set_arguments()
+    args = parser.parse_args()
     setup_log(logger, args)
     data = data_format.copy()
     logger.debug('Created base data template')
-    with Browser(args['browser'], args['driver_path']) as browser:
+    with Browser(args.Browser, args.Driver) as browser:
         logger.info('Opened browser obj')
-        args['browser_obj'] = browser
-        data = follow_cli(args, data)
+        args_dict = vars(args)
+        args_dict['type'] = args_dict['type'].lower()
+        args_dict['browser_obj'] = browser
+        data = follow_cli(args_dict, data)
         for k in data:
             logger.debug(f"{k}:\n{data[k]}")
         input('Done, press any key to quit')
