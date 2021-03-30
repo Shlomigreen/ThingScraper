@@ -7,7 +7,7 @@ The Thingiverse Popular 3D Printing Models Web Scrapper
 ## 1. Description
 
 ThingScraper was created as part of **Israeli Tech Challenge \<itc\>** Data Science fellows program.
-The poropse of this project is to scrape different infomation related to 3D printable models from the popular website [Thingiverse](https://www.thingiverse.com/).
+The purpose of this project is to scrape different information related to 3D printable models from the popular website [Thingiverse](https://www.thingiverse.com/).
 
 ## 2. Installation
 
