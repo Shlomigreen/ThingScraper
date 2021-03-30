@@ -119,7 +119,6 @@ def scrape_main_page(settings, data=None):
     """
     if data is None:
         data = data_format.copy()
-    volume = settings['volume']
     num_runs = settings['num_runs'] if settings['search_type'] != 'all' else settings['preliminary_count']
     if settings['search_type'] != 'thing' and settings['preliminary_count'] > 0:
         num_runs = settings['preliminary_count']
@@ -138,7 +137,7 @@ def scrape_main_page(settings, data=None):
             logger.debug(f"{i} - (Thing) Failed to retrieve for item id = {key}\n")
         else:
             logger.debug(f"{i} - (Thing) Success: {key}")
-            if volume == 'v':
+            if settings['volume'] == 'v':
                 data_to_scrape[key].print_info()
     return data, failed
 
@@ -170,7 +169,6 @@ def scrape_users_in_db(settings, db):
     :return: Data we scraped, and a list of ids we failed to scrape
     """
     names_to_scrape = get_users(db, settings)
-    volume = settings['volume']
     failed = []
     j = settings['num_runs']
     i = 0
@@ -191,7 +189,7 @@ def scrape_users_in_db(settings, db):
             logger.debug(f"{i} - (User) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (User) Success: {k}")
-            if volume == 'v':
+            if settings['volume'] == 'v':
                 user.print_info()
     return db, failed
 
@@ -233,7 +231,6 @@ def scrape_make_in_db(settings, db):
     :return: Data we scraped, and a list of ids we failed to scrape
     """
     makes_to_scrape = get_makes(db, settings)
-    volume = settings['volume']
     failed = []
     j = settings['num_runs']
     i = 0
@@ -254,7 +251,7 @@ def scrape_make_in_db(settings, db):
             logger.debug(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Make) Success: {k}")
-            if volume == 'v':
+            if settings['volume'] == 'v':
                 make.print_info()
     return db, failed
 
@@ -292,7 +289,6 @@ def scrape_remixes_in_db(settings, db):
     :return: Data we scraped, and a list of ids we failed to scrape
     """
     remixes_to_scrape = get_remixes(db, settings)
-    volume = settings['volume']
     failed = []
     j = settings['num_runs']
     i = 0
@@ -314,7 +310,7 @@ def scrape_remixes_in_db(settings, db):
             logger.debug(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Remix) Success: {k}")
-            if volume == 'v':
+            if settings['volume'] == 'v':
                 remix.print_info()
     return db, failed
 
@@ -401,7 +397,6 @@ def setup_log(log, inp):
 
 
 def main():
-    # get initial input
     args = cli.inter_parser()
     setup_log(logger, args)
     data = data_format.copy()
