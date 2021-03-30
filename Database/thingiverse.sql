@@ -1,5 +1,8 @@
+CREATE DATABASE thingiverse;
+USE thingiverse;
+
 CREATE TABLE users(
-    user_id         INTEGER PRIMARY KEY,
+    user_id         INTEGER PRIMARY KEY AUTO_INCREMENT,
     username        VARCHAR(50)     NOT NULL    UNIQUE,
     followers       INT             NOT NULL,
     following       INT             NOT NULL,
