@@ -801,10 +801,10 @@ class Thing(ScrapedData):
             self.properties[Thing.PROPERTIES.LICENSE] = None
 
     def _parse_print_settings(self):
-        # add empty print settings to properties (as some models may not have any print settings information
-        print_settings = {to_field_format(key): None for key in gconf.ThingSettings.POSSIBLE_PRINT_SETTINGS}
-
         if self._elements[Thing.ELEMENTS.PRINT_SETTINGS]:
+            # add empty print settings to properties (as some models may not have any print settings information
+            print_settings = {to_field_format(key): None for key in gconf.ThingSettings.POSSIBLE_PRINT_SETTINGS}
+
             for setting in self._elements[Thing.ELEMENTS.PRINT_SETTINGS]:
                 # using regex to obtain setting name and value into two groups
                 regex_result = re.search(gconf.ThingSettings.FIND_SETTING_REGEX, setting.get_attribute('innerHTML'))
@@ -815,6 +815,8 @@ class Thing(ScrapedData):
 
                     if provided_property in print_settings.keys():
                         print_settings[provided_property] = property_value
+
+            self[Thing.PROPERTIES.PRINT_SETTINGS] = print_settings
         else:
             self[Thing.PROPERTIES.PRINT_SETTINGS] = None
 
@@ -964,11 +966,6 @@ class Thing(ScrapedData):
           :param max_remixes: maximum number of remixes to obtain.
           :return: a list of tuples with (thing_id, likes) for each remix.
         """
-        # open web page,
-        self.browser.get(gconf.ThingSettings.REMIXES_URL.format(self[Thing.PROPERTIES.THING_ID]))
-
-        # sleep for defined seconds to get javascript loaded
-        time.sleep(pconf.IMPLICITLY_WAIT)
 
         # Handle missing number of remixes
         if Thing.PROPERTIES.REMIXES not in self.keys():
@@ -978,6 +975,23 @@ class Thing(ScrapedData):
         # Determine the maximum number of remixes to scan
         # (lowest between configuration max and real number)
         n_remixes = min(self[Thing.PROPERTIES.REMIXES], max_remixes)
+
+        # if there are not remixes to scrape, return empty list
+        if n_remixes == 0:
+            return []
+
+        # open thing's web page
+        self.browser.get(gconf.ThingSettings.BASE_URL.format(self[Thing.PROPERTIES.THING_ID]))
+
+        # sleep for defined seconds to get javascript loaded
+        time.sleep(pconf.IMPLICITLY_WAIT)
+
+        # click remixes tab button
+        remix_button = self.browser.driver.find_element_by_xpath(gconf.ThingSettings.REMIX_BUTTON_PATH)
+        remix_button.click()
+
+        # sleep for defined seconds to get javascript loaded
+        time.sleep(pconf.IMPLICITLY_WAIT)
 
         thing_cards = []
         # while not all n_remixes are found
@@ -989,7 +1003,7 @@ class Thing(ScrapedData):
 
         # Construct thing list that holds thing_id and number of likes per remix
         thing_list = []
-        for card in thing_cards[:n_remixes]:
+        for card in thing_cards:
             thing_url = card.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute('href')
             thing_likes = card.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1].text
 
