@@ -42,6 +42,9 @@ def _insert_user(cursor, user):
 
 
 def _insert_user_title(cursor, user_id, title):
+    """
+    Insert a title if doesnt exist and pairs it with given user id.
+    """
     # run query to find title id for given title
     cursor.execute(dbq.SELECT_TITLE_ID, [title])
     title_id_query = cursor.fetchone()
@@ -62,7 +65,7 @@ def _insert_user_title(cursor, user_id, title):
 
 def _fetch_value(cursor, index=1):
     """
-    Returns the fetchone value of previously run query.
+    Returns the fetchone value of previously run query at cursor.
     """
     return cursor.fetchone().popitem()[index]
 
@@ -95,6 +98,10 @@ def _insert_users(users, cur):
 
 
 def _insert_tag(cur, tag):
+    """
+    Inserts a signle tag (if doesnt exist) into the database at cursor cur.
+    :return: inserted tag id as appear in the database
+    """
     # if tag exists: obtain tag_id
     if cur.execute(dbq.SELECT_TAG_ID, [tag]):
         tag_id = _fetch_value(cur)
@@ -107,6 +114,10 @@ def _insert_tag(cur, tag):
 
 
 def _insert_tag_thing(cur, tag_id, thing_id):
+    """
+    Pair tag and thing based on given ids and insert them into tag_thing table.
+    :return: tag_thing_id
+    """
     # Add tag id and thing id to new table
     cur.execute(dbq.INSERT_TAG_THING, [tag_id, thing_id])
 
@@ -114,6 +125,10 @@ def _insert_tag_thing(cur, tag_id, thing_id):
 
 
 def _insert_print_settings(cur, thing_print_settings):
+    """
+    Inserts new print settings a cursor cur location.
+    :return: setting_id
+    """
     # add print settings, get print setting id
     if thing_print_settings is None:
         return None
@@ -141,6 +156,7 @@ def _insert_print_settings(cur, thing_print_settings):
 
 
 def _insert_thing(cur, thing, user_id, settings_id, remix_id=None, remix_thingiverse_id=None):
+    """Inserts single thing or remix"""
     # construct thing data tuple to be used in query
     thing_data = (thing[Thing.PROPERTIES.THING_ID],
                   user_id,
@@ -200,61 +216,6 @@ def _insert_things(things, cur):
                     _insert_tag_thing(cur, tag_id, thing_id)
 
 
-# def _insert_remixes(remixes, cur):
-#     """Inserts a list of remix dictionaries into database at courser cur."""
-#     for thing in remixes:
-#         # Check if thing exists in the database based on thingiverse id
-#         # thing exists
-#         if cur.execute(dbq.SELECT_THING_ID, [thing[Thing.PROPERTIES.THING_ID]]):
-#             thing_id = _fetch_value(cur)
-#
-#         #  thing doesn't exist
-#         else:
-#
-#             # get setting_id from print setting table; insert new print setting and get its id
-#             settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
-#
-#             # find user id in database and gets its id, enter none if user doesn't exist
-#             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID, [thing[Thing.PROPERTIES.USERNAME]]) else None
-#
-#             # Check if original thing is in the database, if not set to None
-#             remix_id = _fetch_value(cur) if cur.execute(dbq.SELECT_THING_ID, [thing[Thing.PROPERTIES.REMIX]]) else None
-#
-#             # construct thing data tuple to be used in query
-#             thing_data = (thing['thing_id'],
-#                           user_id,
-#                           thing['model_name'],
-#                           thing['uploaded'],
-#                           thing['thing_files'],
-#                           thing['comments'],
-#                           thing['makes'],
-#                           thing['remixes'],
-#                           thing['likes'],
-#                           settings_id,
-#                           thing['license'],
-#                           remix_id,
-#                           thing['remix'],
-#                           thing['category'])
-#
-#             # add thing to database, save the database id
-#             cur.execute(dbq.INSERT_THING, thing_data)
-#             thing_id = cur.lastrowid
-#
-#             # 3.1.4 for each tag, add new if doesnt exist, add tag id and thing id into common table
-#             if thing['tags']:
-#                 for tag in thing['tags']:
-#                     # if tag exists: obtain tag_id
-#                     if cur.execute(dbq.SELECT_TAG_ID, [tag]):
-#                         tag_id = _fetch_value(cur)
-#                     # if title does not exists: add it to titles table, and obtain it's id
-#                     else:
-#                         cur.execute(dbq.INSERT_TAG, [tag])
-#                         tag_id = cur.lastrowid
-#
-#                     # Add tag id and thing id to new table
-#                     cur.execute(dbq.INSERT_TAG_THING, [tag_id, thing_id])
-
-
 def _insert_makes(makes, cur):
     """Inserts a list of make dictionaries into database at courser cur."""
     for make in makes.values():
@@ -293,6 +254,7 @@ def _insert_makes(makes, cur):
 
 
 def parse_sql(filename=gconf.DB_builder.SQL_CONSTRUCTION):
+    """Parse .sql file to match mysql query style."""
     data = open(filename, 'r').readlines()
     statements = []
     delimiter = ';'
@@ -322,11 +284,12 @@ def parse_sql(filename=gconf.DB_builder.SQL_CONSTRUCTION):
     return statements
 
 
-def build_database(json_path, db_name=gconf.DB_builder.DB_NAME):
+def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=True):
     """
     Builds a database of given things, makes and users from a json file.
      :param json_path: the absolute path to json file
      :param db_name: the path to save the database. Default:  gconf.DB_builder.DB_NAME
+     :param drop_existing: if true, drop database first if existing. Default: True.
     """
     logger.info("Building database {}".format(db_name))
 
@@ -350,59 +313,71 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME):
         return
 
     logger.debug("Connected to mysql successfully")
-
     cur = connection.cursor()
 
     try:
         cur.execute('USE {};'.format(db_name))
-        logger.debug("Database `{}` opened".format(db_name))
+        logger.debug("Database `{}` exists".format(db_name))
 
-    except pymysql.err.OperationalError:
-        building_script = gconf.DB_builder.SQL_CONSTRUCTION
-        logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
-                                                                                               building_script))
-        for statement in parse_sql(filename=building_script):
-            cur.execute(statement)
+        if drop_existing:
+            cur.execute('DROP DATABASE {};'.format(db_name))
+            logger.debug("Database dropped".format(db_name))
+        else:
+            logger.warning("Database already exists, nothing happened. "
+                           "Use drop_existing=True argument to first remove it.")
+            return
 
     finally:
-        cur.execute('USE {};'.format(db_name))
+        _build_db_form_script(cur, db_name)
 
     connection.select_db(db_name)
 
-    try:
-        _insert_users(data['users'], cur)
-        logger.info('Users inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert users to database: {e}")
-
-    try:
-        things = [thing for thing in data['things'].values() if thing['remix'] is None]
-        _insert_things(things, cur)
-        logger.info('Things inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert things to database: {e}")
-
-    try:
-        remixes = [thing for thing in data['things'].values() if thing['remix'] is not None]
-        _insert_things(remixes, cur)
-        logger.info('Remixes inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert remixes to database: {e}")
-
-    try:
-        _insert_makes(data['makes'], cur)
-        logger.info('Makes inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert makes to database: {e}")
+    _insert_data(cur, data)
 
     cur.close()
     connection.commit()
     connection.close()
 
 
+def _build_db_form_script(cur, db_name):
+    """Build database at cur based on script path in genral configurations"""
+    building_script = gconf.DB_builder.SQL_CONSTRUCTION
+    logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
+                                                                                           building_script))
+    for statement in parse_sql(filename=building_script):
+        cur.execute(statement)
+    cur.execute('USE {};'.format(db_name))
+
+
+def _insert_data(cur, data):
+    """Insert data users, things, remixes and makes into the database at cur"""
+    try:
+        _insert_users(data['users'], cur)
+        logger.info('Users inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert users to database: {e}")
+    try:
+        things = [thing for thing in data['things'].values() if thing['remix'] is None]
+        _insert_things(things, cur)
+        logger.info('Things inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert things to database: {e}")
+    try:
+        remixes = [thing for thing in data['things'].values() if thing['remix'] is not None]
+        _insert_things(remixes, cur)
+        logger.info('Remixes inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert remixes to database: {e}")
+    try:
+        _insert_makes(data['makes'], cur)
+        logger.info('Makes inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert makes to database: {e}")
+
+
 def main():
     json_path = FULL_JSON_PATH
-    build_database(json_path)
+    build_database(json_path, drop_existing=True)
 
 
 if __name__ == '__main__':
