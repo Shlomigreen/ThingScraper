@@ -56,7 +56,7 @@ class UserSettings:
     ABOUT_WIDGET_SKILL = "UserAboutWidget__skillLevelWrapper--3eHjx"
 
 
-class MakeSettings():
+class MakeSettings:
     class Elements:
         SOURCE = 'source'
         PAGE_INFO = 'page_info'
@@ -138,10 +138,13 @@ class ThingSettings:
 
     BASE_URL = r"https://www.thingiverse.com/thing:{}"
     MAKES_URL = BASE_URL + r'/makes'
-    REMIXES_URL = BASE_URL + r'/remixes'
+    REMIXES_URL = BASE_URL + r'/remixes'  # currently not in use due to bug in thingiverse
+    REMIX_BUTTON_PATH = "/html/body/div[1]/div/div/div/div[6]/div[1]/div[5]"
     ID_REGEX = r"thing:(\d*)"
 
-    POSSIBLE_PRINT_SETTINGS = ["Printer Brand",
+
+
+    POSSIBLE_PRINT_SETTINGS = ["Printer Brand",  # ORDER OF PRINT SETTINGS MATTER
                                "Printer Model",
                                "Rafts",
                                "Supports",
@@ -151,6 +154,10 @@ class ThingSettings:
                                "Filament Color",
                                "Filament Material"]
     FIND_SETTING_REGEX = r"(.*):<div>(.*)</div>"
+    ENCODE_PRINT_SETTINGS = ['Rafts', 'Supports']
+    PRINT_SETTINGS_ENCODER = {'yes': 1,
+                              'no': 0,
+                              "doesn't matter": -1}
 
     # Classes
     CARD_TITLE = "ThingCardHeader__cardNameWrapper--3xgAZ"
@@ -187,8 +194,6 @@ class Logs:
 
 
 class Errors:
-    DB_ERROR1 = "Could not find JSON file at given path"
-    DB_ERROR2 = "Connection to mysql server failed"
     CONSTRUCTION_ERROR = "'url', '{0}' or `properties` (dictionary with '{0}' key) " \
                          "must be provided in order to create User instance."
 

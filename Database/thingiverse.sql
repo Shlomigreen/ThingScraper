@@ -10,11 +10,11 @@ CREATE TABLE users(
     collections     INT             NOT NULL,
     makes           INT             NOT NULL,
     likes           INT             NOT NULL,
-    skill_level     VARCHAR(10)
+    skill_level     VARCHAR(15)
 );
 
 CREATE TABLE titles(
-    title_id    INTEGER PRIMARY KEY,
+    title_id    INTEGER PRIMARY KEY AUTO_INCREMENT,
     title       VARCHAR(50)    NOT NULL  UNIQUE
 );
 
@@ -26,12 +26,12 @@ CREATE TABLE user_title(
 );
 
 CREATE TABLE tags(
-    tag_id      INTEGER PRIMARY KEY,
-    tag         VARCHAR(20)     NOT NULL        UNIQUE
+    tag_id      INTEGER PRIMARY KEY AUTO_INCREMENT,
+    tag         VARCHAR(200)     NOT NULL        UNIQUE
 );
 
 CREATE TABLE print_settings(
-    setting_id          INTEGER PRIMARY KEY,
+    setting_id          INTEGER PRIMARY KEY AUTO_INCREMENT,
     printer_brand       VARCHAR(50),
     printer_model       VARCHAR(50),
     rafts               INT(1),
@@ -44,9 +44,9 @@ CREATE TABLE print_settings(
 );
 
 CREATE TABLE things(
-    thing_id        INTEGER PRIMARY KEY,
+    thing_id        INTEGER PRIMARY KEY AUTO_INCREMENT,
     thigiverse_id   INT             NOT NULL    UNIQUE,
-    user_id         INT             NOT NULL,
+    user_id         INT             ,
     model_name      VARCHAR(200)    NOT NULL,
     uploaded        TEXT            NOT NULL,
     files           INT             NOT NULL,
@@ -73,11 +73,11 @@ CREATE TABLE thing_tag(
 
 
 CREATE TABLE makes(
-    make_id         INTEGER PRIMARY KEY,
+    make_id         INTEGER PRIMARY KEY AUTO_INCREMENT,
     thigiverse_id   INT         NOT NULL       UNIQUE,
     thing_id        INT         NOT NULL,
     user_id         INT,
-    uploaded        INT         NOT NULL,
+    uploaded        TEXT         NOT NULL,
     comments        INT,
     likes           INT,
     views           INT,
