@@ -118,11 +118,11 @@ should be: {Thing, User, Make, Remix, All}
 python main.py Thing
 ```
 
-To quickly scrape for all datatype can use:
+To quickly scrape for all datatype and save, we can use:
 
 
 ```
-python main.py All -n items_per_page -S pages_to_scrape  
+python main.py All -n items_per_page -S pages_to_scrape --google-app-name "PERSONAL-KEY" -J  
 ```
 
 
@@ -198,63 +198,22 @@ Save a copy of the data in a json file at the end of the run.
 Open save from json file at the start of the run
 
 ```
---q, --quiet (bool)
+-v, --volume (int)
 ```
 
-Output minimal text to command line
+Set how much text to output to the command line:
 
-```
--v, --verbose (bool)
-```
+ - 10 = quite
 
-Output as much information as possible to the command line
+ - 20 = normal
 
-#### Reserved tags
+ - 30 = debug
 
-The following tags are reserved for future use, but not yet implemented:
+ - 40 = verbose
 
-```
--I, --Interactive (bool)
-```
+If the provided level is not in the list, it will be set to the nearest value above.
 
-Used to open interactive mode at the end of the run
-
-```
-d, --load-db (bool)
-```
-
-Open save from SQL database at the start of the run
-
-```
--O, --Order-parameter (str)
-```
-
-Used when mining for Things. 
-Indicates how to sort the items on the search page.
-
-```
--u, --update (bool)
-```
-
-When saving to database replace existing values with new values mined.
-
-```
--a, --append (bool)
-```
-
-When saving to database skip existing values.
-
-```
--p, --print (bool)
-```
-
-Don't save to database, print results to command line only
-
-```
---replace (bool)
-```
-
-Clear SQL database and save anew. 
+Normal by default.
 
 ## 4. Configurations
 
@@ -275,6 +234,8 @@ Clear SQL database and save anew.
 - <u>max_remixes_to_scan</u>: the maximum number of remixes to scan per thing.
 
 - <u>implicitly_wait</u>: the number of seconds to wait in some javascript heavy pages (makes and remixes i.e.).
+
+- <u>google_ktree_API_key</u>: A token to use google's APIs: Knowledge Graph Search API.
 
 
 ## 5. Database
