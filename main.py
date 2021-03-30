@@ -138,7 +138,7 @@ def scrape_main_page(settings, data=None):
             logger.debug(f"{i} - (Thing) Failed to retrieve for item id = {key}\n")
         else:
             logger.debug(f"{i} - (Thing) Success: {key}")
-            if settings['volume'] == 'v':
+            if settings['volume'] >= 40:
                 data_to_scrape[key].print_info()
     return data, failed
 
@@ -190,7 +190,7 @@ def scrape_users_in_db(settings, db):
             logger.debug(f"{i} - (User) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (User) Success: {k}")
-            if settings['volume'] == 'v':
+            if settings['volume'] >= 40:
                 user.print_info()
     return db, failed
 
@@ -252,7 +252,7 @@ def scrape_make_in_db(settings, db):
             logger.debug(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Make) Success: {k}")
-            if settings['volume'] == 'v':
+            if settings['volume'] >= 40:
                 make.print_info()
     return db, failed
 
@@ -311,7 +311,7 @@ def scrape_remixes_in_db(settings, db):
             logger.debug(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Remix) Success: {k}")
-            if settings['volume'] == 'v':
+            if settings['volume'] >= 40:
                 remix.print_info()
     return db, failed
 
@@ -396,15 +396,22 @@ def setup_log(log, inp):
     file_handler.setLevel(eval(f"logging.{gconf.Logs.LEVEL_LOG}"))
 
     stream_handler = logging.StreamHandler()
-    if inp['volume'] == 'v':
-        stream_handler.setLevel(logging.DEBUG)
-        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
-    elif inp['volume'] == 'q':
+    if inp['volume'] < 20:
+        # quite mode
         stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_Q)
-    else:
+    elif inp['volume'] < 30:
+        # normal mode
         stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM)
+    elif inp['volume'] < 40:
+        # debug mode
+        stream_handler.setLevel(logging.DEBUG)
+        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
+    else:
+        # verbose mode
+        stream_handler.setLevel(logging.DEBUG)
+        formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
     stream_handler.setFormatter(formatter_stream)
     log.addHandler(file_handler)
     log.addHandler(stream_handler)
@@ -420,18 +427,11 @@ def main():
         logger.info('Opened browser obj')
         args['browser_obj'] = browser
         data = follow_cli(args, data)
-        while args['Interactive']:
-            input('*'*25)
-            args = cli.inter_parser()
-            logger.debug(f"args = {args}")
-            logger.warning("Interactive mode not implemented yet, quiting")
-            # TODO: implement support for interactive mode
-            break
-            data = follow_cli(args)
         for k in data:
             logger.debug(f"{k}:\n{data[k]}")
         input('Done, press any key to quit')
     logger.info('Done with browser obj')
+    logger.info('quiting data miner')
 
 
 if __name__ == '__main__':
