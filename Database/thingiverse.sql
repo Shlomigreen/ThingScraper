@@ -38,7 +38,7 @@ CREATE TABLE print_settings(
     supports            INT(1),
     resolution          VARCHAR(50),
     infill              VARCHAR(50),
-    filament_brand      VARCHAR(50),
+    filament_brand      VARCHAR(200),
     filament_color      VARCHAR(50),
     filament_material   VARCHAR(50)
 );

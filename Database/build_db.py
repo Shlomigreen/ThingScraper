@@ -284,6 +284,42 @@ def parse_sql(filename=gconf.DB_builder.SQL_CONSTRUCTION):
     return statements
 
 
+def _build_db_form_script(cur, db_name):
+    """Build database at cur based on script path in genral configurations"""
+    building_script = gconf.DB_builder.SQL_CONSTRUCTION
+    logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
+                                                                                           building_script))
+    for statement in parse_sql(filename=building_script):
+        cur.execute(statement)
+    cur.execute('USE {};'.format(db_name))
+
+
+def _insert_data(cur, data):
+    """Insert data users, things, remixes and makes into the database at cur"""
+    try:
+        _insert_users(data['users'], cur)
+        logger.info('Users inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert users to database: {e}")
+    try:
+        things = [thing for thing in data['things'].values() if thing['remix'] is None]
+        _insert_things(things, cur)
+        logger.info('Things inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert things to database: {e}")
+    try:
+        remixes = [thing for thing in data['things'].values() if thing['remix'] is not None]
+        _insert_things(remixes, cur)
+        logger.info('Remixes inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert remixes to database: {e}")
+    try:
+        _insert_makes(data['makes'], cur)
+        logger.info('Makes inserted to database')
+    except KeyError as e:
+        logger.error(f"Failed to insert makes to database: {e}")
+
+
 def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=True):
     """
     Builds a database of given things, makes and users from a json file.
@@ -337,42 +373,6 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     cur.close()
     connection.commit()
     connection.close()
-
-
-def _build_db_form_script(cur, db_name):
-    """Build database at cur based on script path in genral configurations"""
-    building_script = gconf.DB_builder.SQL_CONSTRUCTION
-    logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
-                                                                                           building_script))
-    for statement in parse_sql(filename=building_script):
-        cur.execute(statement)
-    cur.execute('USE {};'.format(db_name))
-
-
-def _insert_data(cur, data):
-    """Insert data users, things, remixes and makes into the database at cur"""
-    try:
-        _insert_users(data['users'], cur)
-        logger.info('Users inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert users to database: {e}")
-    try:
-        things = [thing for thing in data['things'].values() if thing['remix'] is None]
-        _insert_things(things, cur)
-        logger.info('Things inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert things to database: {e}")
-    try:
-        remixes = [thing for thing in data['things'].values() if thing['remix'] is not None]
-        _insert_things(remixes, cur)
-        logger.info('Remixes inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert remixes to database: {e}")
-    try:
-        _insert_makes(data['makes'], cur)
-        logger.info('Makes inserted to database')
-    except KeyError as e:
-        logger.error(f"Failed to insert makes to database: {e}")
 
 
 def main():
