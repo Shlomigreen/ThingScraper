@@ -138,8 +138,8 @@ def scrape_main_page(settings, data=None):
             logger.debug(f"{i} - (Thing) Failed to retrieve for item id = {key}\n")
         else:
             logger.debug(f"{i} - (Thing) Success: {key}")
-            if volume == 'v':
-                data_to_scrape[key].print_info()
+            # if volume == 'v':
+            #     data_to_scrape[key].print_info()
     return data, failed
 
 
@@ -191,8 +191,8 @@ def scrape_users_in_db(settings, db):
             logger.debug(f"{i} - (User) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (User) Success: {k}")
-            if volume == 'v':
-                user.print_info()
+            # if volume == 'v':
+            #     user.print_info()
     return db, failed
 
 
@@ -254,8 +254,8 @@ def scrape_make_in_db(settings, db):
             logger.debug(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Make) Success: {k}")
-            if volume == 'v':
-                make.print_info()
+            # if volume == 'v':
+            #     make.print_info()
     return db, failed
 
 
@@ -314,8 +314,8 @@ def scrape_remixes_in_db(settings, db):
             logger.debug(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
         else:
             logger.debug(f"{i} - (Remix) Success: {k}")
-            if volume == 'v':
-                remix.print_info()
+            # if volume == 'v':
+            #     remix.print_info()
     return db, failed
 
 
