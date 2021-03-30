@@ -18,17 +18,6 @@ def enrich_with_apis(data_dict, items=1, app_id_google=None):
     """
     logger.info('Starting enrichment with PAIs')
     enrich_things_with_google_ktree(data_dict["things"], items=items, app_id=app_id_google)
-
-    """things = data_dict["things"]
-    for item in things:
-        thing = things[item]
-        thing_api_data = thing.get('ktree_data', None)
-        if thing_api_data is not None:
-            print(f"printing for {thing[gconf.ThingSettings.Elements.MODEL_NAME]}:")
-            for sub_dict in thing_api_data:
-                print('\t' + '*' * 25)
-                for key in sub_dict:
-                    print(f"\t{key}: {sub_dict[key]}")"""
     logger.info('Done enriching with APIs')
 
 
@@ -48,7 +37,7 @@ def enrich_things_with_google_ktree(things_dict, items=1, app_id=None):
         if ex_data is not None:
             if len(ex_data) > 0:
                 ex_data = parse_data_from_ktree_list(ex_data)
-                thing['ktree_data'] = ex_data
+                thing[gconf.google_ktree.final_id] = ex_data
     logger.info("Done using google's knowledge tree API")
 
 
@@ -99,16 +88,16 @@ def parse_item_from_ktree_list(ktree_item):
     :param ktree_item: one search result in the form of a dict
     :return: parsed dict
     """
-    if ktree_item['@type'] == 'EntitySearchResult':
-        score = ktree_item['resultScore']
-        ktree_item = parse_item_from_ktree_list(ktree_item['result'])
-        ktree_item['resultScore'] = score
+    if ktree_item[gconf.google_ktree.Tags.scheme_type] == gconf.google_ktree.res_identifier:
+        score = ktree_item[gconf.google_ktree.Tags.res_score]
+        ktree_item = parse_item_from_ktree_list(ktree_item[gconf.google_ktree.Tags.res])
+        ktree_item[gconf.google_ktree.Tags.res_score] = score
     else:
-        if "@id" in ktree_item:
-            ktree_item["id"] = ktree_item.pop("@id")
-        if "@type" in ktree_item:
-            ktree_item["type"] = ktree_item.pop("@type")
-        if "detailedDescription" in ktree_item:
-            ktree_item.update(ktree_item["detailedDescription"])
-            del ktree_item["detailedDescription"]
+        if gconf.google_ktree.Tags.scheme_id in ktree_item:
+            ktree_item[gconf.google_ktree.Tags.id] = ktree_item.pop(gconf.google_ktree.Tags.scheme_id)
+        if gconf.google_ktree.Tags.scheme_type in ktree_item:
+            ktree_item[gconf.google_ktree.Tags.type] = ktree_item.pop(gconf.google_ktree.Tags.scheme_type)
+        if gconf.google_ktree.Tags.dit_desc in ktree_item:
+            ktree_item.update(ktree_item[gconf.google_ktree.Tags.dit_desc])
+            del ktree_item[gconf.google_ktree.Tags.dit_desc]
     return ktree_item
