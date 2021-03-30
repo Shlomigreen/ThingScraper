@@ -316,6 +316,16 @@ def scrape_remixes_in_db(settings, db):
     return db, failed
 
 
+def enrich_with_apis(inp, data):
+    """
+
+    :param inp:
+    :param data:
+    :return:
+    """
+    APIs.enrich_with_apis(data, inp['num_runs'], inp['google_app_id'])
+
+
 def follow_cli(inp, data=None):
     """
     Follow instructions from CLI
@@ -340,11 +350,14 @@ def follow_cli(inp, data=None):
         data, fail = scrape_make_in_db(inp, data)
     elif search_type == 'remix':
         data, fail = scrape_remixes_in_db(inp, data)
+    elif search_type == 'apis':
+        enrich_with_apis(inp, data)
     elif search_type == 'all':
         data, fail = scrape_main_page(settings=inp, data=data)
         data, fail = scrape_remixes_in_db(inp, data)
         data, fail = scrape_make_in_db(inp, data)
         data, fail = scrape_users_in_db(inp, data)
+        enrich_with_apis(inp, data)
     else:
         logger.warning(f"{search_type} scraping not implemented yet")
 
@@ -364,7 +377,6 @@ def log_file_gen():
         os.mkdir(gconf.Logs.LOG_DIR)
     # generate saving path for log file
     saving_path = os.path.join(gconf.Logs.LOG_DIR, gconf.Logs.NAME_LOG + '.log')
-
     return os.path.abspath(saving_path)
 
 

@@ -31,6 +31,8 @@ def cli_set_arguments():
                              '20 = normal, '
                              '30 = debug, '
                              '40 = verbose')
+    parser.add_argument('--google-app-name', help='google developer code used to access google APIs',
+                        type=str, default=pconf.google_ktree_API_key)
 
     gr_volume = parser.add_mutually_exclusive_group()
     # volume of CLI output
@@ -39,7 +41,7 @@ def cli_set_arguments():
 
     gr_data = parser.add_mutually_exclusive_group()
     # where to load data from at the start of the run
-    gr_data.add_argument('-j', '--load-json', help='Saves as json', action='store_true')
+    gr_data.add_argument('-j', '--load-json', help='loads a json save file', action='store_true')
     gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
 
     gr_db = parser.add_mutually_exclusive_group()
@@ -85,4 +87,5 @@ def inter_parser(args=None, parser=None):
     inp['do_save_json'] = vars(args).get("save_json", False)
     inp['Interactive'] = vars(args).get("Interactive", False)
     inp['preliminary_count'] = vars(args).get("pre_search", 0) if inp['search_type'] != 'thing' else 0
+    inp['google_app_id'] = vars(args)['google_app_name']
     return inp
