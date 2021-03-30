@@ -3,6 +3,7 @@ import json
 from selenium.webdriver.common.by import By
 
 import cli
+import APIs
 import general_config as gconf
 import personal_config
 from ThingScraper import Browser, Thing, User, Make

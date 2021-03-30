@@ -8,7 +8,7 @@ def cli_set_arguments():
     :return: The parser with the new arguments
     """
     parser = argparse.ArgumentParser(description="Scrap data from thingiverse")
-    parser.add_argument('type', type=str, metavar='{Thing, Make, User, Remix, All}',
+    parser.add_argument('type', type=str, metavar='{Thing, Make, User, Remix, APIs, All}',
                         help='Type of data to scrap', default='Thing')
     parser.add_argument('-I', '--Interactive', help='Opens program in interactive mode', action='store_true')
     parser.add_argument('-n', '--num_items', help='How many items to scrape', type=int, default=500)
@@ -25,6 +25,12 @@ def cli_set_arguments():
     parser.add_argument('-S', '--pre-search', type=int, default=0,
                         help='When scraping for a non-thing type object can first scrape for things, and then scrape '
                              'for data based on result. Please provide number of pages to scrape')
+    parser.add_argument('-V', '--volume', type=int, default=0,
+                        help='Set how much info is printed out: '
+                             '10 = quite, '
+                             '20 = normal, '
+                             '30 = debug, '
+                             '40 = verbose')
 
     gr_volume = parser.add_mutually_exclusive_group()
     # volume of CLI output

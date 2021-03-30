@@ -196,3 +196,8 @@ class Errors:
 class DB_builder:
     DB_NAME = 'thingiverse'
     SQL_CONSTRUCTION = "thingiverse.sql"
+
+
+class google_ktree:
+    api_address = 'https://kgsearch.googleapis.com/v1/entities:search?'
+    main_list_identifier = 'itemListElement'
