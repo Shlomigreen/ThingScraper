@@ -1,7 +1,7 @@
 import json
 import os
-import config as conf
-import db_queries as dbq
+import Database.config as conf
+import Database.db_queries as dbq
 import pymysql
 
 import general_config as gconf

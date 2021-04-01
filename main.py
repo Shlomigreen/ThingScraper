@@ -338,8 +338,8 @@ def follow_cli(inp, data=None):
         data = data_format.copy()
     if inp['load_json']:
         data = load_json(inp['Name'] + '.json')
-    elif inp['load_db']:
-        pass
+    # elif inp['load_db']:
+    #     pass
 
     search_type = inp['type'].lower()
     logger.debug(f"chose to scan for {search_type}")

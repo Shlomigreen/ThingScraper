@@ -132,7 +132,7 @@ dmypy.json
 chromedriver
 
 # configurations
-# personal_config.py
+personal_config.py
 
 # temp folder
 temp/*
