@@ -41,6 +41,8 @@ def set_parser_args(parser):
                              '40 = verbose')
     parser.add_argument('--google-app-name', help='google developer code used to access google APIs',
                         type=str, default=pconf.google_ktree_API_key)
+
+    parser.add_argument('--headless', help='runs the scraper in headless mode (no visible browser)', action='store_true')
     return parser
 
 

@@ -426,7 +426,7 @@ def main():
     setup_log(logger, args)
     data = data_format.copy()
     logger.debug('Created base data template')
-    with Browser(args.Browser, args.Driver) as browser:
+    with Browser(args.Browser, args.Driver, headless=args.headless) as browser:
         logger.info('Opened browser obj')
         args_dict = vars(args)
         args_dict['type'] = args_dict['type'].lower()

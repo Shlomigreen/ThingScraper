@@ -1029,7 +1029,7 @@ class Browser:
     available_browsers = {'chrome': webdriver.Chrome, 'firefox': webdriver.Firefox, 'iexplorer': webdriver.Ie,
                           'safari': webdriver.Safari}
 
-    def __init__(self, name, path):
+    def __init__(self, name, path, headless=False):
         """Construction of a new browser instance
 
                Parameters:
@@ -1041,7 +1041,9 @@ class Browser:
         self.driver_path = os.path.abspath(path)
 
         if self.name in Browser.available_browsers:
-            self.driver = Browser.available_browsers[name](self.driver_path)
+            options = eval('webdriver.{}'.format(name)).options.Options()
+            options.headless = headless
+            self.driver = Browser.available_browsers[name](self.driver_path, options=options)
         else:
             raise ValueError(
                 f"Requested browser '{name}' not available. "

@@ -12,10 +12,10 @@ from ThingScraper import Thing, User, Make, to_field_format
 # Define file logger
 logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
-# Test constants
-RELATIVE_JSON_PATH = "save.json"
-PARENT_PATH = os.path.dirname(os.getcwd())
-FULL_JSON_PATH = os.path.join(PARENT_PATH, RELATIVE_JSON_PATH)
+# # Test constants
+# RELATIVE_JSON_PATH = "save.json"
+# PARENT_PATH = os.path.dirname(os.getcwd())
+# FULL_JSON_PATH = os.path.join(PARENT_PATH, RELATIVE_JSON_PATH)
 
 
 def _insert_user(cursor, user):
@@ -375,10 +375,10 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     connection.close()
 
 
-def main():
-    json_path = FULL_JSON_PATH
-    build_database(json_path, drop_existing=True)
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     json_path = FULL_JSON_PATH
+#     build_database(json_path, drop_existing=True)
+#
+#
+# if __name__ == '__main__':
+#     main()
