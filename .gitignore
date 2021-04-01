@@ -138,4 +138,4 @@ personal_config.py
 temp/*
 
 #database
-Database/thingiverse.db*
+Database/config.py
