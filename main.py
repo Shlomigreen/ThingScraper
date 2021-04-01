@@ -9,17 +9,17 @@ import personal_config
 from ThingScraper import Browser, Thing, User, Make
 import os
 import logging
-
+from Database.build_db import build_database
 
 # Define new logger
 logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
 # Data output structure
 data_format = {
-        "things": dict(),
-        "users": dict(),
-        "makes": dict()
-    }
+    "things": dict(),
+    "users": dict(),
+    "makes": dict()
+}
 
 
 def parse_explore_url(sort_='popular', time_restriction=None, page=1):
@@ -95,12 +95,12 @@ def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
     """
     data = []
     for i in range(pages_to_scan):
-        url = parse_explore_url('popular', 'now-30d', i+1)
+        url = parse_explore_url('popular', 'now-30d', i + 1)
         browser.get(url)
         projects = []
         while len(projects) < gconf.THINGS_PER_PAGE:
             projects = browser.wait_and_find(By.CLASS_NAME, gconf.ExploreList.THING_CARD, find_all=True)
-        logger.debug(f"Found {len(projects)} projects on page {i+1}")
+        logger.debug(f"Found {len(projects)} projects on page {i + 1}")
         for item in projects:
             item_id = item.find_element_by_class_name(gconf.ExploreList.CARD_BODY).get_attribute("href")
             item_id = item_id.rsplit(':', 1)[1]
@@ -434,9 +434,14 @@ def main():
         data = follow_cli(args_dict, data)
         for k in data:
             logger.debug(f"{k}:\n{data[k]}")
-        input('Done, press any key to quit')
     logger.info('Done with browser obj')
-    logger.info('quiting data miner')
+
+    if args.database:
+        json_path = args.Name + ".json"
+        logger.info("Building database from `{}`".format(json_path))
+        build_database(json_path)
+
+    logger.info('Quiting data miner')
 
 
 if __name__ == '__main__':

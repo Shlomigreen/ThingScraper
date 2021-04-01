@@ -47,6 +47,10 @@ def set_parser_args(parser):
 
     parser.add_argument('--headless', help='runs the scraper in headless mode (no visible browser)',
                         action='store_true')
+
+    parser.add_argument('-d', '--database', help="If indicated, a database will be created over the MySQL server "
+                                                 "specified in Database/config.py",
+                        action='store_true')
     return parser
 
 
@@ -59,7 +63,7 @@ def set_parser_groups(parser):
     gr_data = parser.add_mutually_exclusive_group()
     # where to load data from at the start of the run
     gr_data.add_argument('-j', '--load-json', help='loads a json save file', action='store_true')
-    gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
+    # gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
 
     # gr_db = parser.add_mutually_exclusive_group()
     # # how to save results to db
