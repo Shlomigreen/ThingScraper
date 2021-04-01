@@ -1,7 +1,8 @@
+
 browser = "chrome"  # the browser to be used
 driver_path = r"chromedriver"  # the browser's driver to be used
 
-def_save_name = "save"
+DEF_SAVE_NAME = "scraped_data"
 
 WAIT_TIMEOUT = 5  # timeout for requesting full site in seconds
 PAGES_TO_SCAN = 2  # Default value for number of pages to scan

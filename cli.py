@@ -1,5 +1,8 @@
 import personal_config as pconf
 import argparse
+from datetime import datetime
+
+DEF_SAVE_NAME = pconf.DEF_SAVE_NAME + datetime.now().strftime("_%d%m%Y-%H%M")
 
 
 def cli_set_arguments():
@@ -24,7 +27,7 @@ def set_parser_args(parser):
     # parser.add_argument('-I', '--Interactive', help='Opens program in interactive mode', action='store_true')
     parser.add_argument('-n', '--num_items', help='How many items to scrape', type=int, default=500)
     parser.add_argument('-N', '--Name', help='change name of save file (for local save)',
-                        type=str, default=pconf.def_save_name)
+                        type=str, default=DEF_SAVE_NAME)
     parser.add_argument('-B', '--Browser', help='Browser name',
                         type=str, default=pconf.browser)
     parser.add_argument('-D', '--Driver', help='Driver path (for salenium)',
@@ -42,7 +45,8 @@ def set_parser_args(parser):
     parser.add_argument('--google-app-name', help='google developer code used to access google APIs',
                         type=str, default=pconf.google_ktree_API_key)
 
-    parser.add_argument('--headless', help='runs the scraper in headless mode (no visible browser)', action='store_true')
+    parser.add_argument('--headless', help='runs the scraper in headless mode (no visible browser)',
+                        action='store_true')
     return parser
 
 
