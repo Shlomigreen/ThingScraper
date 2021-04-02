@@ -286,7 +286,7 @@ def parse_sql(filename=gconf.DB_builder.SQL_CONSTRUCTION):
 
 def _build_db_form_script(cur, db_name):
     """Build database at cur based on script path in genral configurations"""
-    building_script = gconf.DB_builder.SQL_CONSTRUCTION
+    building_script = os.path.abspath(gconf.DB_builder.SQL_CONSTRUCTION)
     logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
                                                                                            building_script))
     for statement in parse_sql(filename=building_script):
