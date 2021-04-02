@@ -439,7 +439,7 @@ def main():
     if args.database:
         json_path = args.Name + ".json"
         logger.info("Building database from `{}`".format(json_path))
-        build_database(json_path)
+        build_database(json_path, drop_existing=False)
 
     logger.info('Quiting data miner')
 

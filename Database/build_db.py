@@ -12,15 +12,13 @@ from ThingScraper import Thing, User, Make, to_field_format
 # Define file logger
 logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
-# # Test constants
-# RELATIVE_JSON_PATH = "save.json"
-# PARENT_PATH = os.path.dirname(os.getcwd())
-# FULL_JSON_PATH = os.path.join(PARENT_PATH, RELATIVE_JSON_PATH)
+# Test constants
+FULL_JSON_PATH = "/Users/shlomi/Google Drive/ITC/Projects/Data Mining Project/ITC_Data_Mining_Thingiverse/scraped_data_02042021-1519.json"
 
 
 def _insert_user(cursor, user):
     """
-    Insert a single user to dataframe at cursor.
+    Insert a single user to database at cursor.
     Return user id from database after insert.
     """
     # Create a tuple with user fields
@@ -41,27 +39,52 @@ def _insert_user(cursor, user):
     return user_id
 
 
-def _insert_user_title(cursor, user_id, title):
+def _update_user(cursor, user_id, user):
     """
-    Insert a title if doesnt exist and pairs it with given user id.
+    Update a single user in database at cursor.
     """
+    # Create a tuple with user fields
+    user_data = (user[User.PROPERTIES.FOLLOWERS],
+                 user[User.PROPERTIES.FOLLOWING],
+                 user[User.PROPERTIES.DESIGNS],
+                 user[User.PROPERTIES.COLLECTIONS],
+                 user[User.PROPERTIES.MAKES],
+                 user[User.PROPERTIES.LIKES],
+                 user[User.PROPERTIES.SKILL_LEVEL],
+                 user_id)
+
+    cursor.execute(dbq.UPDATE_USER, user_data)
+    logger.debug("user_id {} updated".format(user_id))
+
+
+def _get_title_id(cursor, title):
+    """Returns title id for given title"""
     # run query to find title id for given title
-    cursor.execute(dbq.SELECT_TITLE_ID, [title])
-    title_id_query = cursor.fetchone()
+    title_id_query = cursor.execute(dbq.SELECT_TITLE_ID, [title])
 
-    # if title exists: obtain title_id
     if title_id_query:
-        title_id = title_id_query.popitem()[1]
-    # if title does not exists: add it to titles table, and obtain it's id
+        return _fetch_value(cursor)
     else:
-        cursor.execute(dbq.INSERT_TITLE, [title])
-        title_id = cursor.lastrowid
-        logger.debug("Title '{}' inserted at title_id '{}'".format(title, title_id))
+        return None
 
+
+def _insert_title(cursor, title):
+    """Inserts a new title and returns its id"""
+    cursor.execute(dbq.INSERT_TITLE, [title])
+    title_id = cursor.lastrowid
+    logger.debug("Title '{}' inserted at title_id '{}'".format(title, title_id))
+
+    return title_id
+
+
+def _insert_user_title(cursor, user_id, title_id):
+    """
+    Insert a user_id title_id pair into user_title table
+    """
     # Add title id and user id to new table
     cursor.execute(dbq.INSERT_TITLE_USER, [title_id, user_id])
     logger.debug("Linked title_id '{}' and user_id '{}'".format(title, title_id))
-    
+
 
 def _fetch_value(cursor, index=1):
     """
@@ -74,14 +97,15 @@ def _insert_users(users, cur):
     """Inserts a list of user dictionaries into database at courser cur."""
     for user in users.values():
         try:
-            # user exists in the database: obtain user_id
+            # user exists in the database: obtain user_id and update
             if cur.execute(dbq.SELECT_USER_ID, [user[User.PROPERTIES.USERNAME]]):
                 user_id = _fetch_value(cur)
-    
+                _update_user(cur, user_id, user)
+
             # user doest not exists: add it and obtain user_id
             else:
                 user_id = _insert_user(cur, user)
-        
+
         except KeyError as e:
             logger.error(e)
             continue
@@ -89,26 +113,53 @@ def _insert_users(users, cur):
         # add new title if doesnt exist, get its id, add it with user id to common table
         try:
             user_titles = user[User.PROPERTIES.TITLES]
+
+            # if user has no titles, define an empty set
             if user_titles:
-                for title in user_titles:
-                    _insert_user_title(cur, user_id, title)
+                user_titles = set(user_titles)
+            else:
+                user_titles = set()
+
+            # get db updated titles for user id
+            if cur.execute(dbq.USER_TITLES, user_id):
+                db_titles = {db_title['title'] for db_title in cur.fetchall()}
+            else:
+                db_titles = set()
+
+            new_titles = user_titles.difference(db_titles)
+            remove_titles = db_titles.difference(user_titles)
+
+            # add new titles
+            for title in new_titles:
+                # get id for title if exists
+                title_id = _get_title_id(cur, title)
+                # if it doesnt, add it and get its id
+                if title_id is None:
+                    title_id = _insert_title(cur, title)
+                # pair user and title
+                _insert_user_title(cur, user_id, title_id)
+
+            # remove no longer existing titles for user
+            for title in remove_titles:
+                title_id = _get_title_id(cur, title)
+                cur.execute(dbq.REMOVE_USER_TITLE, [title_id, user_id])
+
         except KeyError as e:
             logger.error(e)
             continue
 
 
-def _insert_tag(cur, tag):
-    """
-    Inserts a signle tag (if doesnt exist) into the database at cursor cur.
-    :return: inserted tag id as appear in the database
-    """
-    # if tag exists: obtain tag_id
-    if cur.execute(dbq.SELECT_TAG_ID, [tag]):
-        tag_id = _fetch_value(cur)
-    # if title does not exists: add it to titles table, and obtain it's id
+def _get_tag_id(cursor, tag):
+    if cursor.execute(dbq.SELECT_TAG_ID, [tag]):
+        return _fetch_value(cursor)
     else:
-        cur.execute(dbq.INSERT_TAG, [tag])
-        tag_id = cur.lastrowid
+        return None
+
+
+def _insert_tag(cur, tag):
+    cur.execute(dbq.INSERT_TAG, [tag])
+    tag_id = cur.lastrowid
+    logger.debug("Tag '{}' inserted at tag_id '{}'".format(tag, tag_id))
 
     return tag_id
 
@@ -118,10 +169,8 @@ def _insert_tag_thing(cur, tag_id, thing_id):
     Pair tag and thing based on given ids and insert them into tag_thing table.
     :return: tag_thing_id
     """
-    # Add tag id and thing id to new table
     cur.execute(dbq.INSERT_TAG_THING, [tag_id, thing_id])
-
-    return cur.lastrowid
+    logger.debug("Linked tag_id '{}' and thing_id '{}'".format(tag_id, thing_id))
 
 
 def _insert_print_settings(cur, thing_print_settings):
@@ -178,13 +227,27 @@ def _insert_thing(cur, thing, user_id, settings_id, remix_id=None, remix_thingiv
     return cur.lastrowid
 
 
+def _update_thing(cur, thing, thing_id):
+    thing_data = (thing[Thing.PROPERTIES.MODEL_NAME],
+                  thing[Thing.PROPERTIES.FILES],
+                  thing[Thing.PROPERTIES.COMMENTS],
+                  thing[Thing.PROPERTIES.MAKES],
+                  thing[Thing.PROPERTIES.REMIXES],
+                  thing[Thing.PROPERTIES.LIKES],
+                  thing[Thing.PROPERTIES.LICENSE],
+                  thing[Thing.PROPERTIES.CATEGORY],
+                  thing_id)
+
+    cur.execute(dbq.UPDATE_THING, thing_data)
+
+
 def _insert_things(things, cur):
     """Inserts a list of thing dictionaries into database at courser cur."""
     for thing in things:
         # thing exists
         if cur.execute(dbq.SELECT_THING_ID, [thing[Thing.PROPERTIES.THING_ID]]):
             thing_id = _fetch_value(cur)
-
+            _update_thing(cur, thing, thing_id)
         #  thing doesn't exist
         else:
 
@@ -206,14 +269,41 @@ def _insert_things(things, cur):
                                      remix_id,
                                      remix_thingiverse_id=thing[Thing.PROPERTIES.REMIX])
 
-            # for each tag, add new if doesnt exist, add tag id and thing id into common table
-            if thing[Thing.PROPERTIES.TAGS]:
-                for tag in thing[Thing.PROPERTIES.TAGS]:
-                    # Obtain tag id in exist in database, insert as new tag if not.
-                    tag_id = _insert_tag(cur, tag)
+        # for each tag, add new if doesnt exist, add tag id and thing id into common table
+        thing_tags = thing[Thing.PROPERTIES.TAGS]
 
-                    # Link tag id and thing id
-                    _insert_tag_thing(cur, tag_id, thing_id)
+        if thing_tags:
+            thing_tags = set(thing_tags)
+        else:
+            thing_tags = set()
+
+        if cur.execute(dbq.THING_TAGS, thing_id):
+            db_tags = {db_title['tag'] for db_title in cur.fetchall()}
+        else:
+            db_tags = set()
+
+        new_tags = thing_tags.difference(db_tags)
+        remove_tags = db_tags.difference(thing_tags)
+
+        for tag in new_tags:
+            tag_id = _get_tag_id(cur, tag)
+            if tag_id is None:
+                tag_id = _insert_tag(cur, tag)
+            _insert_tag_thing(cur, tag_id, thing_id)
+
+        for tag in remove_tags:
+            tag_id = _get_tag_id(cur, tag)
+            cur.execute(dbq.REMOVE_THING_TAG, [tag_id, thing_id])
+
+
+def _update_make(cur, make, make_id):
+    make_data = (make[Make.PROPERTIES.COMMENTS],
+                 make[Make.PROPERTIES.LIKES],
+                 make[Make.PROPERTIES.VIEWS],
+                 make[Make.PROPERTIES.CATEGORY],
+                 make_id)
+
+    cur.execute(dbq.UPDATE_MAKE, make_data)
 
 
 def _insert_makes(makes, cur):
@@ -223,7 +313,7 @@ def _insert_makes(makes, cur):
 
         if cur.execute(dbq.SELECT_MAKE_ID, [make[Make.PROPERTIES.MAKE_ID]]):
             make_id = _fetch_value(cur)
-
+            _update_make(cur, make, make_id)
         # create new make if doesn't exist
         else:
 
@@ -285,13 +375,12 @@ def parse_sql(filename=gconf.DB_builder.SQL_CONSTRUCTION):
 
 
 def _build_db_form_script(cur, db_name):
-    """Build database at cur based on script path in genral configurations"""
-    building_script = os.path.abspath(gconf.DB_builder.SQL_CONSTRUCTION)
+    """Build database at cur based on script path in general configurations"""
+    building_script = os.path.abspath(os.path.join(gconf.DB_builder.DB_DIR, gconf.DB_builder.SQL_CONSTRUCTION))
     logger.info("`{}` database was not found. Running database building script: {}".format(db_name.title(),
                                                                                            building_script))
     for statement in parse_sql(filename=building_script):
         cur.execute(statement)
-    cur.execute('USE {};'.format(db_name))
 
 
 def _insert_data(cur, data):
@@ -358,13 +447,12 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
         if drop_existing:
             cur.execute('DROP DATABASE {};'.format(db_name))
             logger.debug("Database dropped".format(db_name))
-        else:
-            logger.warning("Database already exists, nothing happened. "
-                           "Use drop_existing=True argument to first remove it.")
-            return
+
+    except pymysql.err.OperationalError:
+        _build_db_form_script(cur, db_name)
 
     finally:
-        _build_db_form_script(cur, db_name)
+        cur.execute('USE {};'.format(db_name))
 
     connection.select_db(db_name)
 
@@ -375,10 +463,10 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     connection.close()
 
 
-# def main():
-#     json_path = FULL_JSON_PATH
-#     build_database(json_path, drop_existing=True)
-#
-#
-# if __name__ == '__main__':
-#     main()
+def main():
+    json_path = FULL_JSON_PATH
+    build_database(json_path, drop_existing=False)
+
+
+if __name__ == '__main__':
+    main()

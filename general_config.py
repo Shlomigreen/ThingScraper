@@ -139,7 +139,8 @@ class ThingSettings:
     BASE_URL = r"https://www.thingiverse.com/thing:{}"
     MAKES_URL = BASE_URL + r'/makes'
     REMIXES_URL = BASE_URL + r'/remixes'  # currently not in use due to bug in thingiverse
-    REMIX_BUTTON_PATH = "/html/body/div[1]/div/div/div/div[6]/div[1]/div[5]"
+    REMIX_BUTTON_PATH = "/html/body/div[1]/div/div/div/div[6]/div[1]/div[5]"  # currently not in use
+    REMIX_METRIC_INDEX = 4
     ID_REGEX = r"thing:(\d*)"
 
 
@@ -200,6 +201,7 @@ class Errors:
 
 class DB_builder:
     DB_NAME = 'thingiverse'
+    DB_DIR = 'Database'
     SQL_CONSTRUCTION = "thingiverse.sql"
 
 

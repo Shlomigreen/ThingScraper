@@ -967,6 +967,9 @@ class Thing(ScrapedData):
           :return: a list of tuples with (thing_id, likes) for each remix.
         """
 
+        # open thing's web page
+        self.open_url()
+
         # Handle missing number of remixes
         if Thing.PROPERTIES.REMIXES not in self.keys():
             self._fetch_tab_buttons()
@@ -980,17 +983,13 @@ class Thing(ScrapedData):
         if n_remixes == 0:
             return []
 
-        # open thing's web page
-        self.browser.get(gconf.ThingSettings.BASE_URL.format(self[Thing.PROPERTIES.THING_ID]))
-
-        # sleep for defined seconds to get javascript loaded
-        time.sleep(pconf.IMPLICITLY_WAIT)
-
         # click remixes tab button
-        remix_button = self.browser.driver.find_element_by_xpath(gconf.ThingSettings.REMIX_BUTTON_PATH)
+        all_metrics = self.browser.wait_and_find(By.CLASS_NAME, gconf.ThingSettings.TAB_BUTTON, find_all=True)
+        remix_button = all_metrics[gconf.ThingSettings.REMIX_METRIC_INDEX]
+        # remix_button = self.browser.driver.find_element_by_xpath(gconf.ThingSettings.REMIX_BUTTON_PATH)
         remix_button.click()
 
-        # sleep for defined seconds to get javascript loaded
+        # sleep for defined seconds to get javascript page loaded
         time.sleep(pconf.IMPLICITLY_WAIT)
 
         thing_cards = []
