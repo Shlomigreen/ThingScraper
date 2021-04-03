@@ -2,7 +2,8 @@
 browser = "chrome"  # the browser to be used
 driver_path = r"chromedriver"  # the browser's driver to be used
 
-DEF_SAVE_NAME = "scraped_data"
+# JSON output
+DEF_SAVE_NAME = "JSON/scraped_data"  # default save name for json file
 
 WAIT_TIMEOUT = 5  # timeout for requesting full site in seconds
 PAGES_TO_SCAN = 2  # Default value for number of pages to scan

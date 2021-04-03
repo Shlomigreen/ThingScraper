@@ -30,10 +30,17 @@ def parse_explore_url(sort_='popular', time_restriction=None, page=1):
     :param page: page number
     :return: url in str format
     """
+    restrictions = {'7': 'now-7d',
+                    '30': 'now-30d',
+                    '365': 'now-365d',
+                    'inf': None}
+
     base_url = gconf.MAIN_URL + r'search?type=things&q=&sort='
     # sort_: popular, newest or makes
     base_url += sort_
     if time_restriction:
+        if time_restriction in restrictions.keys():
+            time_restriction = restrictions[time_restriction]
         # time_restriction: now-7d, now-30d, now-365d, None (All time)
         base_url += r"&posted_after=" + time_restriction
     base_url += r"&page=" + str(page)
@@ -86,16 +93,17 @@ def load_json(file_path):
         return res
 
 
-def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN):
+def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN, **kwargs):
     """
     Scans the top pages of the last month, and returns a dictionary of the projects
     :param browser: The browser we're using
     :param pages_to_scan: The amount of pages we want to scan on the site
+    :param kwargs: passed to parse_explore_url (sort_, time_restriction)
     :return: A dictionary, where the key is the "thing id", and the value is a dictionary containing the likes value.
     """
     data = []
     for i in range(pages_to_scan):
-        url = parse_explore_url('popular', 'now-30d', i + 1)
+        url = parse_explore_url(page=i + 1, **kwargs)
         browser.get(url)
         projects = []
         while len(projects) < gconf.THINGS_PER_PAGE:
@@ -124,7 +132,7 @@ def scrape_main_page(settings, data=None):
     if settings['type'] != 'thing' and settings['pre_search'] > 0:
         num_runs = settings['pre_search']
     browser = settings['browser_obj']
-    data_to_scrape = scraper_search(browser, num_runs)
+    data_to_scrape = scraper_search(browser, num_runs, sort_='popular', time_restriction='30')
     failed = []
     i = 0
     for key in data_to_scrape:
@@ -215,7 +223,7 @@ def get_makes(data, settings):
             # print(f"Error of type {type(E)}:\n{E}")
             makes = [None]
         else:
-            logger.debug(f'{i} - (Makes) Success: {k}:\n{makes}')
+            logger.debug(f'{i} - (Thing > Makes) Success {k}: {makes}')
         for make in makes:
             if make is not None:
                 if type(make) == tuple:
@@ -276,7 +284,7 @@ def get_remixes(data, settings):
             logger.exception(f'{i} - (Remixes) Failed to get remixes from Thing id {k}')
             remixes = [None]
         else:
-            logger.debug(f'{i} - (Remixes) Success: {k}:\n{remixes}')
+            logger.debug(f'{i} - (Thing > Remixes) Success {k}: {remixes}')
         for remix in remixes:
             if remix is not None:
                 res[remix[0]] = remix
@@ -334,14 +342,36 @@ def follow_cli(inp, data=None):
     :param data: Data about the website
     :return: Data object updated
     """
+    # Generate empty data dictionary if not provided
     if data is None:
         data = data_format.copy()
-    if inp['load_json']:
-        data = load_json(inp['Name'] + '.json')
-    # elif inp['load_db']:
-    #     pass
 
+    # Load a JSON file from given path, if was not given - scrape data into a new JSON
+    if inp['load_json']:
+        file_path = inp['load_json']
+
+        if os.path.exists(file_path):
+            data = load_json(file_path)
+        else:
+            logger.error("Given JSON path was not found: `{}`".format(file_path))
+    else:
+        data = scrape_data(data, inp)
+
+        # Only save JSON if a new scrapping was done
+        if inp['save_json']:
+            save_json(inp['Name'] + '.json', data)
+
+    if inp['database']:
+        json_path = inp['Name'] + ".json"
+        logger.info("Building database from `{}`".format(json_path))
+        build_database(json_path, drop_existing=False)
+
+    return data
+
+
+def scrape_data(data, inp):
     search_type = inp['type'].lower()
+
     logger.debug(f"chose to scan for {search_type}")
     if search_type == 'thing' or (search_type != 'all' and inp['pre_search'] > 0):
         data, fail = scrape_main_page(settings=inp, data=data)
@@ -360,10 +390,7 @@ def follow_cli(inp, data=None):
         data, fail = scrape_users_in_db(inp, data)
         enrich_with_apis(inp, data)
     else:
-        logger.warning(f"{search_type} scraping not implemented yet")
-
-    if inp['save_json']:
-        save_json(inp['Name'] + '.json', data)
+        logger.error(f"Unknown type : `{search_type}`")
 
     return data
 
@@ -373,11 +400,15 @@ def log_file_gen():
     handles file location for logs storage
     :return: path to main log file
     """
+    from datetime import datetime
+
+    file_name = gconf.Logs.NAME_LOG + datetime.now().strftime("_%d%m%Y-%H%M")
+
     # check if dir path exists
     if not os.path.exists(gconf.Logs.LOG_DIR):
         os.mkdir(gconf.Logs.LOG_DIR)
     # generate saving path for log file
-    saving_path = os.path.join(gconf.Logs.LOG_DIR, gconf.Logs.NAME_LOG + '.log')
+    saving_path = os.path.join(gconf.Logs.LOG_DIR, file_name + '.log')
     return os.path.abspath(saving_path)
 
 
@@ -392,27 +423,34 @@ def setup_log(log, inp):
 
     formatter_log = logging.Formatter(gconf.Logs.FORMAT_LOG)
     log_path = log_file_gen()
+
     file_handler = logging.FileHandler(log_path)
     file_handler.setFormatter(formatter_log)
     file_handler.setLevel(eval(f"logging.{gconf.Logs.LEVEL_LOG}"))
 
     stream_handler = logging.StreamHandler()
+    cli_log_level = logging.INFO
     if inp.volume < 20:
         # quite mode
-        stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_Q)
     elif inp.volume < 30:
         # normal mode
-        stream_handler.setLevel(logging.INFO)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM)
     elif inp.volume < 40:
         # debug mode
+        cli_log_level = logging.DEBUG
         stream_handler.setLevel(logging.DEBUG)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
     else:
         # verbose mode
+        cli_log_level = logging.DEBUG
         stream_handler.setLevel(logging.DEBUG)
         formatter_stream = logging.Formatter(gconf.Logs.FORMAT_STREAM_V)
+
+    stream_handler.setLevel(cli_log_level)
+    if inp.volume > 0:
+        file_handler.setLevel(cli_log_level)
+
     stream_handler.setFormatter(formatter_stream)
     log.addHandler(file_handler)
     log.addHandler(stream_handler)
@@ -426,6 +464,7 @@ def main():
     setup_log(logger, args)
     data = data_format.copy()
     logger.debug('Created base data template')
+    # Scraping
     with Browser(args.Browser, args.Driver, headless=args.headless) as browser:
         logger.info('Opened browser obj')
         args_dict = vars(args)
@@ -434,12 +473,7 @@ def main():
         data = follow_cli(args_dict, data)
         for k in data:
             logger.debug(f"{k}:\n{data[k]}")
-    logger.info('Done with browser obj')
-
-    if args.database:
-        json_path = args.Name + ".json"
-        logger.info("Building database from `{}`".format(json_path))
-        build_database(json_path, drop_existing=False)
+    logger.info('Browser object closed')
 
     logger.info('Quiting data miner')
 

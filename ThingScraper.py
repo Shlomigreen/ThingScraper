@@ -807,7 +807,7 @@ class Thing(ScrapedData):
 
             for setting in self._elements[Thing.ELEMENTS.PRINT_SETTINGS]:
                 # using regex to obtain setting name and value into two groups
-                regex_result = re.search(gconf.ThingSettings.FIND_SETTING_REGEX, setting.get_attribute('innerHTML'))
+                regex_result = re.search(gconf.ThingSettings.FIND_SETTING_REGEX, setting.text)
 
                 if regex_result is not None:
                     provided_property = to_field_format(regex_result.group(1))
@@ -823,7 +823,7 @@ class Thing(ScrapedData):
     def _parse_tags(self):
         if self._elements[Thing.ELEMENTS.TAGS]:
             # Obtain text from each tag element add add them all as a list to properties
-            self.properties[Thing.PROPERTIES.TAGS] = [tag.text for tag in self._elements[Thing.ELEMENTS.TAGS]]
+            self.properties[Thing.PROPERTIES.TAGS] = [tag.text.lower() for tag in self._elements[Thing.ELEMENTS.TAGS]]
         else:
             self.properties[Thing.PROPERTIES.TAGS] = None
 

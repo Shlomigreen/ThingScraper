@@ -13,7 +13,7 @@ from ThingScraper import Thing, User, Make, to_field_format
 logger = logging.getLogger(gconf.Logs.LOGGER_NAME)
 
 # Test constants
-FULL_JSON_PATH = "/Users/shlomi/Google Drive/ITC/Projects/Data Mining Project/ITC_Data_Mining_Thingiverse/scraped_data_02042021-1519.json"
+# FULL_JSON_PATH = "/Users/shlomi/Google Drive/ITC/Projects/Data Mining Project/ITC_Data_Mining_Thingiverse/JSON/scraped_data_03042021-1433.json"
 
 
 def _insert_user(cursor, user):
@@ -83,7 +83,7 @@ def _insert_user_title(cursor, user_id, title_id):
     """
     # Add title id and user id to new table
     cursor.execute(dbq.INSERT_TITLE_USER, [title_id, user_id])
-    logger.debug("Linked title_id '{}' and user_id '{}'".format(title, title_id))
+    logger.debug("Linked title_id '{}' and user_id '{}'".format(title_id, user_id))
 
 
 def _fetch_value(cursor, index=1):
@@ -187,14 +187,15 @@ def _insert_print_settings(cur, thing_print_settings):
 
         # for each possible print setting, append to list, if setting needs encoding, apply it before adding
         for setting in gconf.ThingSettings.POSSIBLE_PRINT_SETTINGS:
+            setting = to_field_format(setting)
 
             if setting not in thing_print_settings:
                 print_settings.append(None)
                 continue
 
-            setting_value = thing_print_settings[to_field_format(setting)]
+            setting_value = thing_print_settings[setting]
 
-            if setting in gconf.ThingSettings.ENCODE_PRINT_SETTINGS:
+            if setting_value is not None and setting in gconf.ThingSettings.ENCODE_PRINT_SETTINGS:
                 setting_value = gconf.ThingSettings.PRINT_SETTINGS_ENCODER[setting_value.lower()]
 
             print_settings.append(setting_value)
@@ -463,10 +464,10 @@ def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     connection.close()
 
 
-def main():
-    json_path = FULL_JSON_PATH
-    build_database(json_path, drop_existing=False)
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     json_path = FULL_JSON_PATH
+#     build_database(json_path, drop_existing=False)
+#
+#
+# if __name__ == '__main__':
+#     main()

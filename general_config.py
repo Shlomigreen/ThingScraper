@@ -2,6 +2,8 @@
 MAIN_URL = "https://www.thingiverse.com/"  # Url of the main domain
 THINGS_PER_PAGE = 20  # Number of things found in each explore page
 
+# File naming suffix
+DATE_SUFFIX = "_%d%m%Y-%H%M"
 
 class ExploreList:
     THING_CARD = "ThingCard__thingCard--1IcHY"
@@ -154,8 +156,8 @@ class ThingSettings:
                                "Filament Brand",
                                "Filament Color",
                                "Filament Material"]
-    FIND_SETTING_REGEX = r"(.*):<div>(.*)</div>"
-    ENCODE_PRINT_SETTINGS = ['Rafts', 'Supports']
+    FIND_SETTING_REGEX = r"(.*):\n(.*)"
+    ENCODE_PRINT_SETTINGS = ['rafts', 'supports']
     PRINT_SETTINGS_ENCODER = {'yes': 1,
                               'no': 0,
                               "doesn't matter": -1}
@@ -190,7 +192,7 @@ class Logs:
     LEVEL_GENERAL = 'DEBUG'
     LEVEL_LOG = 'INFO'
     NAME_LOG = 'thingscraper'
-    LOG_DIR = 'Log'
+    LOG_DIR = 'Logs'
     LOGGER_NAME = 'thingscraper'
 
 
