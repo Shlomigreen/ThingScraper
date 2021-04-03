@@ -348,10 +348,10 @@ def follow_cli(inp, data=None):
 
     # Load a JSON file from given path, if was not given - scrape data into a new JSON
     if inp['load_json']:
-        file_path = inp['load_json']
+        json_path = os.path.abspath(inp['load_json'])
 
-        if os.path.exists(file_path):
-            data = load_json(file_path)
+        if os.path.exists(json_path):
+            data = load_json(json_path)
         else:
             logger.error("Given JSON path was not found: `{}`".format(file_path))
     else:
@@ -359,11 +359,10 @@ def follow_cli(inp, data=None):
 
         # Only save JSON if a new scrapping was done
         if inp['save_json']:
-            file_path = os.path.abspath(inp['Name'] + '.json')
-            save_json(file_path, data)
+            json_path = os.path.abspath(inp['Name'] + '.json')
+            save_json(json_path, data)
 
     if inp['database']:
-        json_path = inp['Name'] + ".json"
         logger.info("Building database from `{}`".format(json_path))
         build_database(json_path, drop_existing=False)
 
