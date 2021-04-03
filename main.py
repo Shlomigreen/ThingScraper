@@ -120,9 +120,7 @@ def scrape_main_page(settings, data=None):
     """
     if data is None:
         data = data_format.copy()
-    num_runs = settings['num_items'] if settings['type'] != 'all' else settings['pre_search']
-    if settings['type'] != 'thing' and settings['pre_search'] > 0:
-        num_runs = settings['pre_search']
+    num_runs = settings['num_items']
     browser = settings['browser_obj']
     data_to_scrape = scraper_search(browser, num_runs)
     failed = []
@@ -152,14 +150,14 @@ def get_users(data, settings):
     """
     res = set()
     items = dict()
-    for k in data:
-        # if k != 'users' or settings['update']:
-        if k != 'users':
-            items.update(data[k])
-    for k in items:
-        a = items[k]['username']
-        if a is not None:
-            res.add(a)
+    for category in data:
+        # if category != 'users' or settings['update']:
+        if category != 'users':
+            items.update(data[category])
+    for item_id in items:
+        username = items[item_id]['username']
+        if username is not None:
+            res.add(username)
     return res
 
 
@@ -172,15 +170,13 @@ def scrape_users_in_db(settings, db):
     """
     names_to_scrape = get_users(db, settings)
     failed = []
-    j = settings['num_items']
-    i = 0
+    runs_counter = 0
     for k in names_to_scrape:
-        i += 1
-        if j == 0 and settings['type'] != 'all':
-            # scan up to num_items items. If negative, scan all
-            break
-        else:
-            j += -1
+        if settings['not_all_users']:
+            if runs_counter >= settings['num_items']:
+                # scan up to num_items items.
+                break
+        runs_counter += 1
         try:
             user = User(username=k, browser=settings['browser_obj'])
             user.fetch_all()
@@ -188,9 +184,9 @@ def scrape_users_in_db(settings, db):
             db['users'][k] = user
         except Exception as E:
             failed.append((k, E))
-            logger.debug(f"{i} - (User) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{runs_counter} - (User) Failed to retrieve for item id = {k}\n")
         else:
-            logger.debug(f"{i} - (User) Success: {k}")
+            logger.debug(f"{runs_counter} - (User) Success: {k}")
             if settings['volume'] >= 40:
                 user.print_info()
     return db, failed
@@ -234,15 +230,12 @@ def scrape_make_in_db(settings, db):
     """
     makes_to_scrape = get_makes(db, settings)
     failed = []
-    j = settings['num_items']
-    i = 0
+    runs_counter = 0
     for k in makes_to_scrape:
-        i += 1
-        if j == 0 and settings['type'] != 'all':
-            # scan up to num_items items. If negative, scan all
+        if runs_counter >= settings['num_items']:
+            # scan up to num_items items.
             break
-        else:
-            j += -1
+        runs_counter += 1
         try:
             make = Make(make_id=k, browser=settings['browser_obj'])
             make.fetch_all()
@@ -250,9 +243,9 @@ def scrape_make_in_db(settings, db):
             db['makes'][k] = make
         except Exception as E:
             failed.append((k, E))
-            logger.debug(f"{i} - (Make) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{runs_counter} - (Make) Failed to retrieve for item id = {k}\n")
         else:
-            logger.debug(f"{i} - (Make) Success: {k}")
+            logger.debug(f"{runs_counter} - (Make) Success: {k}")
             if settings['volume'] >= 40:
                 make.print_info()
     return db, failed
@@ -292,15 +285,12 @@ def scrape_remixes_in_db(settings, db):
     """
     remixes_to_scrape = get_remixes(db, settings)
     failed = []
-    j = settings['num_items']
-    i = 0
+    runs_counter = 0
     for k in remixes_to_scrape:
-        i += 1
-        if j == 0 and settings['type'] != 'all':
-            # scan up to num_items items. If negative, scan all
+        if runs_counter >= settings['num_items']:
+            # scan up to num_items items.
             break
-        else:
-            j += -1
+        runs_counter += 1
         try:
             remix = Thing(thing_id=k, browser=settings['browser_obj'])
             remix.fetch_all(settings['browser_obj'])
@@ -309,9 +299,9 @@ def scrape_remixes_in_db(settings, db):
             db['things'][k] = remix
         except Exception as E:
             failed.append((k, E))
-            logger.debug(f"{i} - (Remix) Failed to retrieve for item id = {k}\n")
+            logger.debug(f"{runs_counter} - (Remix) Failed to retrieve for item id = {k}\n")
         else:
-            logger.debug(f"{i} - (Remix) Success: {k}")
+            logger.debug(f"{runs_counter} - (Remix) Success: {k}")
             if settings['volume'] >= 40:
                 remix.print_info()
     return db, failed
@@ -325,6 +315,37 @@ def enrich_with_apis(inp, data):
     :return: None
     """
     APIs.enrich_with_apis(data, inp['num_items'], inp['google_app_name'])
+
+
+def choose_action(inp, data, action):
+    """
+    Follow instructions from CLI
+    :param inp: Instructions from CLI
+    :param data: Data about the website
+    :param action: Action currently performing
+    :return: results of scraping for the chosen action
+    """
+    has_done_something = False
+    logger.info(f"Performing {action} search for {inp['num_items']} items")
+    fail = []
+    if action == 'thing' or action == 'all':
+        data, fail = scrape_main_page(settings=inp, data=data)
+        has_done_something = True
+    if action == 'remix' or action == 'all':
+        data, fail = scrape_remixes_in_db(inp, data)
+        has_done_something = True
+    if action == 'make' or action == 'all':
+        data, fail = scrape_make_in_db(inp, data)
+        has_done_something = True
+    if action == 'api' or action == 'all':
+        enrich_with_apis(inp, data)
+        has_done_something = True
+    if action == 'user' or action == 'all':
+        data, fail = scrape_users_in_db(inp, data)
+        has_done_something = True
+    if not has_done_something:
+        logger.warning(f"{action} scraping not implemented")
+    return data, fail
 
 
 def follow_cli(inp, data=None):
@@ -341,27 +362,16 @@ def follow_cli(inp, data=None):
     # elif inp['load_db']:
     #     pass
 
-    search_type = inp['type'].lower()
-    logger.debug(f"chose to scan for {search_type}")
-    if search_type == 'thing' or (search_type != 'all' and inp['pre_search'] > 0):
-        data, fail = scrape_main_page(settings=inp, data=data)
-    elif search_type == 'user':
-        data, fail = scrape_users_in_db(inp, data)
-    elif search_type == 'make':
-        data, fail = scrape_make_in_db(inp, data)
-    elif search_type == 'remix':
-        data, fail = scrape_remixes_in_db(inp, data)
-    elif search_type == 'apis':
-        enrich_with_apis(inp, data)
-    elif search_type == 'all':
-        data, fail = scrape_main_page(settings=inp, data=data)
-        data, fail = scrape_remixes_in_db(inp, data)
-        data, fail = scrape_make_in_db(inp, data)
-        data, fail = scrape_users_in_db(inp, data)
-        enrich_with_apis(inp, data)
-    else:
-        logger.warning(f"{search_type} scraping not implemented yet")
-
+    n_list = inp['num_items'] if len(inp['num_items']) > 0 else [personal_config.PAGES_TO_SCAN]
+    type_list = inp['type']
+    n_max = len(n_list) - 1
+    for i, action in enumerate(type_list):
+        i_n = min(i, n_max)
+        inp['type'] = action
+        inp['num_items'] = n_list[i_n]
+        data, fail = choose_action(inp, data, action)
+    inp['num_items'] = n_list
+    inp['type'] = type_list
     if inp['save_json']:
         save_json(inp['Name'] + '.json', data)
 
@@ -419,8 +429,31 @@ def setup_log(log, inp):
     log.info("logger has been setup successfully")
 
 
+def adjust_args_dict(a_dict):
+    """
+    modifies user argument to program format
+    :param a_dict: a dict of arguments from the user
+    :return: modified arguments dict
+    """
+    logger.debug(f"got the following actions as input:\n\t{a_dict['type']}")
+    actions = [a.lower() for a in a_dict['type']]
+    all_list = ['thing', 'remix', 'make', 'api', 'user']
+    i = 0
+    while i >= 0:
+        try:
+            i = actions.index('all')
+        except ValueError:
+            i = -1
+        else:
+            del actions[i]
+            for item in all_list[::-1]:
+                actions.insert(i, item)
+    a_dict['type'] = actions
+    logger.debug(f"interpreted the actions to be:\n\t{a_dict['type']}")
+    return a_dict
+
+
 def main():
-    # args = cli.inter_parser()
     parser = cli.cli_set_arguments()
     args = parser.parse_args()
     setup_log(logger, args)
@@ -429,7 +462,7 @@ def main():
     with Browser(args.Browser, args.Driver, headless=args.headless) as browser:
         logger.info('Opened browser obj')
         args_dict = vars(args)
-        args_dict['type'] = args_dict['type'].lower()
+        args_dict = adjust_args_dict(args_dict)
         args_dict['browser_obj'] = browser
         data = follow_cli(args_dict, data)
         for k in data:
