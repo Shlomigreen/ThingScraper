@@ -359,7 +359,8 @@ def follow_cli(inp, data=None):
 
         # Only save JSON if a new scrapping was done
         if inp['save_json']:
-            save_json(inp['Name'] + '.json', data)
+            file_path = os.path.abspath(inp['Name'] + '.json')
+            save_json(file_path, data)
 
     if inp['database']:
         json_path = inp['Name'] + ".json"
