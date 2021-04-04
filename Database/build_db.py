@@ -410,22 +410,25 @@ def _insert_data(cur, data):
         logger.error(f"Failed to insert makes to database: {e}")
 
 
-def build_database(json_path, db_name=gconf.DB_builder.DB_NAME, drop_existing=True):
+def build_database(json_data, db_name=gconf.DB_builder.DB_NAME, drop_existing=True):
     """
-    Builds a database of given things, makes and users from a json file.
-     :param json_path: the absolute path to json file
+    Builds a database of given things, makes and users from a JSON file.
+     :param json_data: either JSON data or an  absolute path to a JSON file
      :param db_name: the path to save the database. Default:  gconf.DB_builder.DB_NAME
      :param drop_existing: if true, drop database first if existing. Default: True.
     """
     logger.info("Building database {}".format(db_name))
 
-    if os.path.exists(json_path):
-        data = json.load(open(json_path, 'r'))
+    if isinstance(json_data, str):
+        if os.path.exists(json_data):
+            data = json.load(open(json_data, 'r'))
+        else:
+            logger.error("Could not find JSON file at given path: {}".format(json_data))
+            logger.error("Building database aborted.")
+            return
+        logger.debug("JSON file loaded")
     else:
-        logger.error("Could not find JSON file at given path: {}".format(json_path))
-        logger.error("Building database aborted.")
-        return
-    logger.debug("JSON file loaded")
+        data = json_data
 
     # Set up mysql server connection
     try:

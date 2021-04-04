@@ -59,8 +59,7 @@ def save_json(file_path, things_dict):
     try:
         with open(file_path, 'w') as file:
             logger.debug("beginning save: opened save file")
-            data = {data_type: {k: things_dict[data_type][k].properties for k in things_dict[data_type]}
-                    for data_type in things_dict}
+            data = parse_json_from_data(things_dict)
             json.dump(data, file)
     except Exception as E:
         logger.exception(f"Could not save the file:\n{type(E)}: {E}")
@@ -69,6 +68,12 @@ def save_json(file_path, things_dict):
         logger.debug("saved successfully")
     finally:
         return state
+
+
+def parse_json_from_data(data):
+    data = {data_type: {k: data[data_type][k].properties for k in data[data_type]}
+            for data_type in data}
+    return data
 
 
 def load_json(file_path):
@@ -374,7 +379,7 @@ def follow_cli(inp, data=None):
         if os.path.exists(json_path):
             data = load_json(json_path)
         else:
-            logger.error("Given JSON path was not found: `{}`".format(file_path))
+            logger.error("Given JSON path was not found: `{}`".format(json_path))
     else:
         # data = scrape_data(data, inp)
         # TODO: Review changes above and below
@@ -395,8 +400,12 @@ def follow_cli(inp, data=None):
             save_json(json_path, data)
 
     if inp['database']:
-        logger.info("Building database from `{}`".format(json_path))
-        build_database(json_path, drop_existing=False)
+        if 'json_path' in locals():
+            logger.info("Building database from `{}`".format(json_path))
+            build_database(json_path, drop_existing=False)
+        else:
+            logger.info("Building database from scrapped data")
+            build_database(parse_json_from_data(data), drop_existing=False)
 
     return data
 
