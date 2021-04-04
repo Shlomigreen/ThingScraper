@@ -29,17 +29,23 @@ def set_parser_args(parser):
     """
 
     # Config tags
-    parser.add_argument('-m', '--mode', help='Scraping mode')
+    parser.add_argument('-s', '--sort', help="The method to sort 'explore' page before scraping. "
+                                             "pn - where p indicates sort by popularity and n is either:"
+                                             "7 for past week"
+                                             "30 for past month"
+                                             "365 for past year"
+                                             "inf for all time"
+                                             "n - to sort by newest models"
+                                             "m - to sort by most makes",
+                        type=str, default='p30', metavar='{popular, newest, makes}')
 
-    parser.add_argument('-s', '--sort', help='By what to sort main page before scrapping',
-                   type=str, default='popular', metavar='{popular, newest, makes}')
 
     parser.add_argument('type', action='extend', nargs='*', type=str,
                         choices=['Thing', 'Make', 'User', 'Remix', 'API', 'All'],
                         help='Type of data to scrap. \n'
-                             ' can provide multiple types and it will be scraped in the provided order. \n'
+                             'can provide multiple types and it will be scraped in the provided order. \n'
                              'All is equivalent to writing: \n'
-                             'Thing Remix Make API User.')
+                             'Thing Remix Make User API.')
     parser.add_argument('-n', '--num-items', type=int, action='extend', nargs='*', default=[],
                         help='How many items to scrape per action. \n'
                              'If not enough arguments are provided the last argument will be used as substitute. \n'
@@ -79,11 +85,16 @@ def set_parser_long_args(parser):
     parser.add_argument('--headless', help='runs the scraper in headless mode (no visible browser)',
                         action='store_true')
 
-    parser.add_argument('-d', '--database', help="If indicated, a database will be created over the MySQL server "
-                                                 "specified in Database/config.py",
-                        action='store_true')
     parser.add_argument('--not-all-users', action='store_true',
                         help='search only for the exact number of users specified in the --num-items tag')
+
+    # Database related arguments
+    parser.add_argument('-d', '--database', help="If indicated, a database will be created over the MySQL server "
+                                                 "specified in Database/config.py or modified with tags",
+                        action='store_true')
+
+    parser.add_argument('--reset-database', help="If indicated, previously created database will be dropped first.",
+                        action='store_true')
     # parser.add_argument('-S', '--save-to-db', action='store_true',
     #                     help='save results in mySQL database (not implemented yet)')
     return parser

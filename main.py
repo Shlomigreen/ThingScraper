@@ -22,27 +22,40 @@ data_format = {
 }
 
 
-def parse_explore_url(sort_='popular', time_restriction=None, page=1):
+def parse_explore_url(sort_='p', page=1):
     """
     Generates a url that leads to an explore page based on given parameters
-    :param sort_: sort type. can be: popular, newest or makes
-    :param time_restriction: restriction when sorted by popular: now-7d, now-30d, now-365d, None (All time)
+    :param sort_: sort type. can be: p (popular), n (newest) or m (makes)
     :param page: page number
     :return: url in str format
     """
     restrictions = {'7': 'now-7d',
                     '30': 'now-30d',
                     '365': 'now-365d',
-                    'inf': None}
+                    'inf': ''}
+
+    sort_options = {'p': 'popular',
+                    'm': 'makes',
+                    'n': 'newest'}
+
+    sort_type = sort_[0]
 
     base_url = gconf.MAIN_URL + r'search?type=things&q=&sort='
-    # sort_: popular, newest or makes
-    base_url += sort_
-    if time_restriction:
-        if time_restriction in restrictions.keys():
-            time_restriction = restrictions[time_restriction]
-        # time_restriction: now-7d, now-30d, now-365d, None (All time)
-        base_url += r"&posted_after=" + time_restriction
+    base_url += sort_options[sort_type]
+
+    if len(sort_) > 1:
+        if sort_type == 'p':
+            time_restriction = restrictions['30']  # Setting default restriction
+
+            if sort_[1:] in restrictions.keys():
+                time_restriction = restrictions[sort_[1:]]
+            else:
+                logger.warning("Unknown sort restriction {}. Using default '30'.".format(sort_[1:]))
+
+            base_url += r"&posted_after=" + time_restriction
+        else:
+            logger.warning("Only one chracter is acceptable if not sorting by popular - ignoring:'{}'".format(sort_[1:]))
+
     base_url += r"&page=" + str(page)
 
     return base_url
@@ -119,7 +132,7 @@ def scraper_search(browser, pages_to_scan=personal_config.PAGES_TO_SCAN, **kwarg
             item_id = item_id.rsplit(':', 1)[1]
             likes = item.find_elements_by_class_name(gconf.ExploreList.THING_LIKES)[1]
             thing = Thing(thing_id=item_id)
-            thing['likes'] = int(likes.text)
+            thing['likes'] = int(likes.text) if likes.text else 0
             data.append((item_id, thing))
     return dict(data)
 
@@ -135,7 +148,7 @@ def scrape_main_page(settings, data=None):
         data = data_format.copy()
     num_runs = settings['num_items']
     browser = settings['browser_obj']
-    data_to_scrape = scraper_search(browser, num_runs, sort_='popular', time_restriction='30')
+    data_to_scrape = scraper_search(browser, num_runs, sort_=settings['sort'])
     failed = []
     i = 0
     for key in data_to_scrape:
@@ -338,26 +351,28 @@ def choose_action(inp, data, action):
     :param action: Action currently performing
     :return: results of scraping for the chosen action
     """
-    has_done_something = False
     logger.info(f"Performing {action} search for {inp['num_items']} items")
     fail = []
+
     if action == 'thing' or action == 'all':
         data, fail = scrape_main_page(settings=inp, data=data)
-        has_done_something = True
-    if action == 'remix' or action == 'all':
+
+    elif action == 'remix' or action == 'all':
         data, fail = scrape_remixes_in_db(inp, data)
-        has_done_something = True
-    if action == 'make' or action == 'all':
+
+    elif action == 'make' or action == 'all':
         data, fail = scrape_make_in_db(inp, data)
-        has_done_something = True
-    if action == 'api' or action == 'all':
+
+    elif action == 'api' or action == 'all':
         enrich_with_apis(inp, data)
-        has_done_something = True
-    if action == 'user' or action == 'all':
+
+    elif action == 'user' or action == 'all':
         data, fail = scrape_users_in_db(inp, data)
-        has_done_something = True
-    if not has_done_something:
+
+    else:
         logger.warning(f"{action} scraping not implemented")
+        return [], []
+
     return data, fail
 
 
@@ -381,8 +396,6 @@ def follow_cli(inp, data=None):
         else:
             logger.error("Given JSON path was not found: `{}`".format(json_path))
     else:
-        # data = scrape_data(data, inp)
-        # TODO: Review changes above and below
         n_list = inp['num_items'] if len(inp['num_items']) > 0 else [personal_config.PAGES_TO_SCAN]
         type_list = inp['type']
         n_max = len(n_list) - 1
@@ -402,36 +415,10 @@ def follow_cli(inp, data=None):
     if inp['database']:
         if 'json_path' in locals():
             logger.info("Building database from `{}`".format(json_path))
-            build_database(json_path, drop_existing=False)
+            build_database(json_path, drop_existing=inp['reset_database'])
         else:
             logger.info("Building database from scrapped data")
-            build_database(parse_json_from_data(data), drop_existing=False)
-
-    return data
-
-
-def scrape_data(data, inp):
-    search_type = inp['type'].lower()
-
-    logger.debug(f"chose to scan for {search_type}")
-    if search_type == 'thing' or (search_type != 'all' and inp['pre_search'] > 0):
-        data, fail = scrape_main_page(settings=inp, data=data)
-    elif search_type == 'user':
-        data, fail = scrape_users_in_db(inp, data)
-    elif search_type == 'make':
-        data, fail = scrape_make_in_db(inp, data)
-    elif search_type == 'remix':
-        data, fail = scrape_remixes_in_db(inp, data)
-    elif search_type == 'apis':
-        enrich_with_apis(inp, data)
-    elif search_type == 'all':
-        data, fail = scrape_main_page(settings=inp, data=data)
-        data, fail = scrape_remixes_in_db(inp, data)
-        data, fail = scrape_make_in_db(inp, data)
-        data, fail = scrape_users_in_db(inp, data)
-        enrich_with_apis(inp, data)
-    else:
-        logger.error(f"Unknown type : `{search_type}`")
+            build_database(parse_json_from_data(data), drop_existing=inp['reset_database'])
 
     return data
 
