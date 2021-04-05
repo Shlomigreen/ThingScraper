@@ -371,7 +371,7 @@ def choose_action(inp, data, action):
 
     else:
         logger.warning(f"{action} scraping not implemented")
-        return [], []
+        # return [], []
 
     return data, fail
 
@@ -395,22 +395,22 @@ def follow_cli(inp, data=None):
             data = load_json(json_path)
         else:
             logger.error("Given JSON path was not found: `{}`".format(json_path))
-    else:
-        n_list = inp['num_items'] if len(inp['num_items']) > 0 else [personal_config.PAGES_TO_SCAN]
-        type_list = inp['type']
-        n_max = len(n_list) - 1
-        for i, action in enumerate(type_list):
-            i_n = min(i, n_max)
-            inp['type'] = action
-            inp['num_items'] = n_list[i_n]
-            data, fail = choose_action(inp, data, action)
-        inp['num_items'] = n_list
-        inp['type'] = type_list
 
-        # Only save JSON if a new scrapping was done
-        if inp['save_json']:
-            json_path = os.path.abspath(inp['Name'] + '.json')
-            save_json(json_path, data)
+    n_list = inp['num_items'] if len(inp['num_items']) > 0 else [personal_config.PAGES_TO_SCAN]
+    type_list = inp['type']
+    n_max = len(n_list) - 1
+    for i, action in enumerate(type_list):
+        i_n = min(i, n_max)
+        inp['type'] = action
+        inp['num_items'] = n_list[i_n]
+        data, fail = choose_action(inp, data, action)
+    inp['num_items'] = n_list
+    inp['type'] = type_list
+
+    # Only save JSON if a new scrapping was done
+    if inp['save_json']:
+        json_path = os.path.abspath(inp['Name'] + '.json')
+        save_json(json_path, data)
 
     if inp['database']:
         if 'json_path' in locals():

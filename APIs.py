@@ -82,22 +82,42 @@ def parse_data_from_ktree_list(ktree_data):
     return parsed_data
 
 
+def choose_tags_in_ktree(old_ktree_item):
+    """
+    chooses only tags in the database template,
+    allocates space for non found attributes
+    :param old_ktree_item: item with tags from the api
+    :return: item with only selected tags
+    """
+    new_ktree_item = dict()
+    tag_names = [tag for tag in dir(gconf.google_ktree.Tags) if tag[0] != "_"]
+    tags = vars(gconf.google_ktree.Tags)
+    for tag_name in tag_names:
+        tag = tags[tag_name]
+        new_ktree_item[tag] = old_ktree_item.get(tag, None)
+    return new_ktree_item
+
+
 def parse_item_from_ktree_list(ktree_item):
     """
     get one search result from google knowledge tree and parse it
     :param ktree_item: one search result in the form of a dict
     :return: parsed dict
     """
-    if ktree_item[gconf.google_ktree.Tags.scheme_type] == gconf.google_ktree.res_identifier:
+    if ktree_item[gconf.google_ktree.OldTags.type] == gconf.google_ktree.res_identifier:
+        # We are in the result layer, we need to go a layer deeper
         score = ktree_item[gconf.google_ktree.Tags.res_score]
-        ktree_item = parse_item_from_ktree_list(ktree_item[gconf.google_ktree.Tags.res])
+        ktree_item = parse_item_from_ktree_list(ktree_item[gconf.google_ktree.res])
         ktree_item[gconf.google_ktree.Tags.res_score] = score
     else:
-        if gconf.google_ktree.Tags.scheme_id in ktree_item:
-            ktree_item[gconf.google_ktree.Tags.id] = ktree_item.pop(gconf.google_ktree.Tags.scheme_id)
-        if gconf.google_ktree.Tags.scheme_type in ktree_item:
-            ktree_item[gconf.google_ktree.Tags.type] = ktree_item.pop(gconf.google_ktree.Tags.scheme_type)
-        if gconf.google_ktree.Tags.dit_desc in ktree_item:
-            ktree_item.update(ktree_item[gconf.google_ktree.Tags.dit_desc])
-            del ktree_item[gconf.google_ktree.Tags.dit_desc]
+        # rename old tags
+        if gconf.google_ktree.OldTags.id in ktree_item:
+            ktree_item[gconf.google_ktree.Tags.id] = ktree_item.pop(gconf.google_ktree.OldTags.id)
+        if gconf.google_ktree.OldTags.type in ktree_item:
+            ktree_item[gconf.google_ktree.Tags.type] = ktree_item.pop(gconf.google_ktree.OldTags.type)
+        # unpack detailed description
+        if gconf.google_ktree.OldTags.dit_desc in ktree_item:
+            ktree_item.update(ktree_item[gconf.google_ktree.OldTags.dit_desc])
+            del ktree_item[gconf.google_ktree.OldTags.dit_desc]
+        ktree_item = choose_tags_in_ktree(ktree_item)
     return ktree_item

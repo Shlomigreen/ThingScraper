@@ -212,12 +212,19 @@ class google_ktree:
     main_list_identifier = 'itemListElement'
     res_identifier = 'EntitySearchResult'
     final_id = 'ktree_data'
+    res = 'result'
+
+    class OldTags:
+        type = "@type"
+        id = "@id"
+        dit_desc = "detailedDescription"
 
     class Tags:
-        scheme_type = "@type"
         type = "type"
-        scheme_id = "@id"
         id = "id"
-        dit_desc = "detailedDescription"
-        res = 'result'
         res_score = 'resultScore'
+        url = 'url'
+        name = 'name'
+        desc = 'description'
+        license = 'license'
+        bod = 'articleBody'

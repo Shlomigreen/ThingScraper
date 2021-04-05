@@ -38,10 +38,8 @@ def set_parser_args(parser):
                                              "n - to sort by newest models"
                                              "m - to sort by most makes",
                         type=str, default='p30', metavar='{popular, newest, makes}')
-
-
     parser.add_argument('type', action='extend', nargs='*', type=str,
-                        choices=['Thing', 'Make', 'User', 'Remix', 'API', 'All'],
+                        choices=['Thing', 'Make', 'User', 'Remix', 'API', 'All', 'Skip'],
                         help='Type of data to scrap. \n'
                              'can provide multiple types and it will be scraped in the provided order. \n'
                              'All is equivalent to writing: \n'
@@ -108,9 +106,8 @@ def set_parser_groups(parser):
     """
     gr_data = parser.add_mutually_exclusive_group()
     # where to load data from at the start of the run
-    gr_data.add_argument('-j', '--load-json',
-                         help='Load previously scrapped data from a JSON file',
-                         type=str)
+    gr_data.add_argument('-j', '--load-json', type=str, default=None,
+                         help='Load previously scrapped data from a JSON file, please provide path')
     # gr_data.add_argument('-d', '--load-db', help='(el) Loads json save', action='store_true')
 
     # gr_db = parser.add_mutually_exclusive_group()
