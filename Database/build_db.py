@@ -201,8 +201,11 @@ def _insert_print_settings(cur, thing_print_settings):
             print_settings.append(setting_value)
 
         # insert as new print settings
-        cur.execute(dbq.INSERT_PRINT_SETTINGS, print_settings)
-        return cur.lastrowid
+        try:
+            cur.execute(dbq.INSERT_PRINT_SETTINGS, print_settings)
+            return cur.lastrowid
+        except:
+            return None
 
 
 def _insert_thing(cur, thing, user_id, settings_id, remix_id=None, remix_thingiverse_id=None):
@@ -253,10 +256,8 @@ def _insert_things(things, cur):
         else:
 
             # get setting_id from print setting table; insert new print setting and get its id
-            try:
-                settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
-            except pymysql.err.DataError:
-                settings_id = None
+            settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
+
 
             # find user id in database and gets its id, enter none if user doesn't exist
             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID, [thing[Thing.PROPERTIES.USERNAME]]) else None
@@ -322,10 +323,7 @@ def _insert_makes(makes, cur):
         else:
 
             # insert print settings and get id
-            try:
-                settings_id = _insert_print_settings(cur, make[Make.PROPERTIES.PRINT_SETTINGS])
-            except pymysql.err.DataError:
-                settings_id = None
+            settings_id = _insert_print_settings(cur, make[Make.PROPERTIES.PRINT_SETTINGS])
             # find user id in database and gets its id, enter none if user doesn't exist
             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID,
                                                        [make[Make.PROPERTIES.USERNAME]]) else None
