@@ -39,7 +39,6 @@ def set_parser_args(parser):
                                              "m - to sort by most makes",
                         type=str, default='p30', metavar='{popular, newest, makes}')
 
-
     parser.add_argument('type', action='extend', nargs='*', type=str,
                         choices=['Thing', 'Make', 'User', 'Remix', 'API', 'All'],
                         help='Type of data to scrap. \n'

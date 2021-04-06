@@ -253,7 +253,10 @@ def _insert_things(things, cur):
         else:
 
             # get setting_id from print setting table; insert new print setting and get its id
-            settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
+            try:
+                settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
+            except:
+                settings_id = None
 
             # find user id in database and gets its id, enter none if user doesn't exist
             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID, [thing[Thing.PROPERTIES.USERNAME]]) else None
