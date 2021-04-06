@@ -322,8 +322,10 @@ def _insert_makes(makes, cur):
         else:
 
             # insert print settings and get id
-            settings_id = _insert_print_settings(cur, make[Make.PROPERTIES.PRINT_SETTINGS])
-
+            try:
+                settings_id = _insert_print_settings(cur, make[Make.PROPERTIES.PRINT_SETTINGS])
+            except:
+                settings_id = None
             # find user id in database and gets its id, enter none if user doesn't exist
             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID,
                                                        [make[Make.PROPERTIES.USERNAME]]) else None
