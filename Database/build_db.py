@@ -433,6 +433,8 @@ def build_database(json_data, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     else:
         data = json_data
 
+    print(data)
+
     # Set up mysql server connection
     try:
         connection = pymysql.connect(host=conf.MYSQL_HOST,
