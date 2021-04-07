@@ -213,7 +213,7 @@ def _insert_thing(cur, thing, user_id, settings_id, remix_id=None, remix_thingiv
     # construct thing data tuple to be used in query
     thing_data = (thing[Thing.PROPERTIES.THING_ID],
                   user_id,
-                  thing[Thing.PROPERTIES.MODEL_NAME],
+                  thing[Thing.PROPERTIES.MODEL_NAME].encode('ascii', errors='ignore').decode('utf-8'),
                   thing[Thing.PROPERTIES.UPLOADED],
                   thing[Thing.PROPERTIES.FILES],
                   thing[Thing.PROPERTIES.COMMENTS],
@@ -440,7 +440,7 @@ def build_database(json_data, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
                                      password=conf.MYSQL_PASSWORD,
                                      cursorclass=pymysql.cursors.DictCursor,
                                      auth_plugin_map='mysql_native_password',
-                                     charset='utf8mb4')
+                                     charset='utf-8')
     except pymysql.err.OperationalError as e:
         logger.error("Connection to mysql server failed : {}".format(e))
         return
