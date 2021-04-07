@@ -433,7 +433,8 @@ def build_database(json_data, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
     else:
         data = json_data
 
-    logger.debug(data)
+    logger.debug("DATA TYPE:")
+    logger.debug(type(data))
 
     # Set up mysql server connection
     try:
