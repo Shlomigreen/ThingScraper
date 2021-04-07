@@ -227,6 +227,7 @@ def _insert_thing(cur, thing, user_id, settings_id, remix_id=None, remix_thingiv
                   thing[Thing.PROPERTIES.CATEGORY])
 
     # add thing to database, return row id
+    logger.debug("Inserting thing {}".format(thing[Thing.PROPERTIES.THING_ID]))
     cur.execute(dbq.INSERT_THING, thing_data)
     return cur.lastrowid
 
@@ -241,7 +242,7 @@ def _update_thing(cur, thing, thing_id):
                   thing[Thing.PROPERTIES.LICENSE],
                   thing[Thing.PROPERTIES.CATEGORY],
                   thing_id)
-
+    logger.debug("Updating thing id {} (thingiverse id : {} ) ".format(thing_id, thing[Thing.PROPERTIES.THING_ID]))
     cur.execute(dbq.UPDATE_THING, thing_data)
 
 
@@ -257,7 +258,6 @@ def _insert_things(things, cur):
 
             # get setting_id from print setting table; insert new print setting and get its id
             settings_id = _insert_print_settings(cur, thing[Thing.PROPERTIES.PRINT_SETTINGS])
-
 
             # find user id in database and gets its id, enter none if user doesn't exist
             user_id = _fetch_value(cur) if cur.execute(dbq.SELECT_USER_ID, [thing[Thing.PROPERTIES.USERNAME]]) else None
