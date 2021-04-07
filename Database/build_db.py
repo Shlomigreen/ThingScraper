@@ -439,7 +439,8 @@ def build_database(json_data, db_name=gconf.DB_builder.DB_NAME, drop_existing=Tr
                                      user=conf.MYSQL_USER,
                                      password=conf.MYSQL_PASSWORD,
                                      cursorclass=pymysql.cursors.DictCursor,
-                                     auth_plugin_map='mysql_native_password')
+                                     auth_plugin_map='mysql_native_password',
+                                     charset='utf8mb4')
     except pymysql.err.OperationalError as e:
         logger.error("Connection to mysql server failed : {}".format(e))
         return
